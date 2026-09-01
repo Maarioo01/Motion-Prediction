@@ -231,5 +231,8 @@ docker compose run --rm -e CUDA_VISIBLE_DEVICES=0 qcnet bash
 - [`docs/REPO_ASSESSMENT.md`](docs/REPO_ASSESSMENT.md) — which of these 10 are actually
   worth building on as a research baseline versus just useful for comparison, and what's
   missing from the shortlist entirely.
+- **[Bearing & Bench](https://claude.ai/code/artifact/822a6791-32af-4d7e-8f69-ee138f1f16a6)**
+  — a single-page read combining the two docs below, if that's easier to read in one
+  sitting than two markdown files.
 - [`docs/PHD_ROADMAP.md`](docs/PHD_ROADMAP.md) — how this benchmark fits into a 2-3 year
   PhD plan aimed at V2X motion forecasting.
