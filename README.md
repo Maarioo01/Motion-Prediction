@@ -22,7 +22,7 @@ and the two GPUs on this machine.
 ## Quick start
 
 ```bash
-git clone <this-repo-url> MOTION_PREDICTION && cd MOTION_PREDICTION
+git clone https://github.com/Maarioo01/Motion-Prediction.git && cd Motion-Prediction
 
 # 1. Fetch the upstream model repos (not tracked in this repo - see "Repository
 #    structure" below for why) and overlay this project's Dockerfiles onto them.
@@ -48,14 +48,13 @@ MOTION_PREDICTION/
   docker/<Name>/          # TRACKED: this project's own files for each repo
     Dockerfile
     entrypoint.sh          # only present where something needs building at container
-                            # start (see "Compiled CUDA extensions" below)
+                            # start (see "Adding a new repo" below)
     requirements-docker.txt # only present where the upstream requirements.txt needed
                             # patching or didn't exist - overlaid onto repos/<Name>/
                             # as requirements.txt by setup.sh
   repos/<Name>/            # GITIGNORED: fresh clone of the upstream repo + the
                             # overlaid docker/<Name>/* files on top. Recreated by
                             # setup.sh, safe to delete and regenerate at any time.
-  docker/                # (see above)
   docs/
     BUILD_GOTCHAS.md      # real build issues hit and how they were fixed - read this
                             # before adding a new repo, the same problems recur
@@ -232,7 +231,7 @@ docker compose run --rm -e CUDA_VISIBLE_DEVICES=0 qcnet bash
   worth building on as a research baseline versus just useful for comparison, and what's
   missing from the shortlist entirely.
 - **[Bearing & Bench](https://claude.ai/code/artifact/822a6791-32af-4d7e-8f69-ee138f1f16a6)**
-  — a single-page read combining the two docs below, if that's easier to read in one
-  sitting than two markdown files.
+  — a single-page read combining `REPO_ASSESSMENT.md` and `PHD_ROADMAP.md`, if that's
+  easier to read in one sitting than two markdown files.
 - [`docs/PHD_ROADMAP.md`](docs/PHD_ROADMAP.md) — how this benchmark fits into a 2-3 year
   PhD plan aimed at V2X motion forecasting.
