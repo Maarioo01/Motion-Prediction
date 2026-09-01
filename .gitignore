@@ -1,0 +1,11 @@
+# Upstream model repos are fetched fresh by setup.sh, not tracked here.
+/repos/
+
+# Build/debug logs
+*.last_build.log
+
+# Misc
+__pycache__/
+*.pyc
+.DS_Store
+*.swp

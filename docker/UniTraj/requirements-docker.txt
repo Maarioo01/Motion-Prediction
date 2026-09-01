@@ -1,0 +1,10 @@
+wandb
+pytorch-lightning==2.0.4
+hydra-core
+scikit-learn
+einops
+easydict
+panda3d-simplepbr==0.10
+h5py
+av2
+timm

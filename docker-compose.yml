@@ -1,0 +1,131 @@
+services:
+  qcnet:
+    build: ./repos/QCNet
+    image: motion-prediction/qcnet:latest
+    container_name: qcnet
+    gpus: all
+    ipc: host
+    volumes:
+      - ./repos/QCNet:/workspace
+      - /raid/argoverse2/motion_forecasting:/data/argoverse2:ro
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+
+  realmotion:
+    build: ./repos/RealMotion
+    image: motion-prediction/realmotion:latest
+    container_name: realmotion
+    gpus: all
+    ipc: host
+    volumes:
+      - ./repos/RealMotion:/workspace
+      - /raid/argoverse2/motion_forecasting:/data/argoverse2:ro
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+
+  trajflow:
+    build: ./repos/TrajFlow
+    image: motion-prediction/trajflow:latest
+    container_name: trajflow
+    gpus: all
+    ipc: host
+    volumes:
+      - ./repos/TrajFlow:/workspace
+      - /raid/waymo:/data/waymo:ro
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+
+  sceneinformer:
+    build: ./repos/SceneInformer
+    image: motion-prediction/sceneinformer:latest
+    container_name: sceneinformer
+    gpus: all
+    ipc: host
+    volumes:
+      - ./repos/SceneInformer:/workspace
+      - /raid/waymo:/data/waymo:ro
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+
+  emp:
+    build: ./repos/emp
+    image: motion-prediction/emp:latest
+    container_name: emp
+    gpus: all
+    ipc: host
+    volumes:
+      - ./repos/emp:/workspace
+      - /raid/argoverse2/motion_forecasting:/data/argoverse2:ro
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+
+  pretraining-synthetic:
+    build: ./repos/pretraining-synthetic
+    image: motion-prediction/pretraining-synthetic:latest
+    container_name: pretraining-synthetic
+    gpus: all
+    ipc: host
+    volumes:
+      - ./repos/pretraining-synthetic:/workspace
+      - /raid/argoverse1_1/motion_forecasting:/data/argoverse1:ro
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+
+  gameformer:
+    build: ./repos/GameFormer
+    image: motion-prediction/gameformer:latest
+    container_name: gameformer
+    gpus: all
+    ipc: host
+    volumes:
+      - ./repos/GameFormer:/workspace
+      - /raid/waymo:/data/waymo:ro
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+
+  unitraj:
+    build: ./repos/UniTraj
+    image: motion-prediction/unitraj:latest
+    container_name: unitraj
+    gpus: all
+    ipc: host
+    volumes:
+      - ./repos/UniTraj:/workspace
+      - /raid/waymo:/data/waymo:ro
+      - /raid/nuscenes:/data/nuscenes:ro
+      - /raid/argoverse2:/data/argoverse2:ro
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+
+  cmp:
+    build: ./repos/CMP
+    image: motion-prediction/cmp:latest
+    container_name: cmp
+    gpus: all
+    ipc: host
+    volumes:
+      - ./repos/CMP:/workspace
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+
+  uniad:
+    build: ./repos/UniAD
+    image: motion-prediction/uniad:latest
+    container_name: uniad
+    gpus: all
+    ipc: host
+    volumes:
+      - ./repos/UniAD:/workspace
+      - /raid/nuscenes:/data/nuscenes:ro
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
