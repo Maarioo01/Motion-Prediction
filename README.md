@@ -100,15 +100,18 @@ remain in `setup.sh --all` if wanted later.
 ## Data gaps
 
 OPV2V and V2V4Real (needed by CMP) are done — 197GB and 41GB respectively at
-`/raid/datasets/`, already mounted into the `cmp` service. One gap remains:
+`/raid/datasets/`, already mounted into the `cmp` service. One gap is in progress:
 
-- **Waymo Open Motion Dataset, `scenario` format.** `/raid/waymo` currently only has the
-  `tf_example` format (flattened tensors); TrajFlow, SceneInformer, and GameFormer all
-  need the `scenario` format instead (protobuf `Scenario` messages) — a separate
-  download from the same WOMD release, not a conversion of what's already there. Unlike
-  OPV2V/V2V4Real, this one needs your own Google account to accept Waymo's dataset
-  license before it can be downloaded — see [`docs/DATASETS.md`](docs/DATASETS.md) for
-  the exact steps and commands.
+- **Waymo Open Motion Dataset, `scenario` format.** `/raid/waymo` had only the
+  `tf_example` format (flattened tensors) until now; TrajFlow, SceneInformer, and
+  GameFormer all need the `scenario` format instead (protobuf `Scenario` messages) — a
+  separate download from the same WOMD release, not a conversion. Currently
+  downloading to `/raid/waymo/scenario` (needed your own Google account to accept
+  Waymo's license first — see [`docs/DATASETS.md`](docs/DATASETS.md)). No
+  `docker-compose.yml` changes are needed once it finishes — those three services
+  already mount the whole `/raid/waymo` directory, so `scenario/` becomes visible
+  automatically; each repo's own preprocessing step is still required, see
+  [`docs/DATASETS.md`](docs/DATASETS.md).
 
 ## Training from scratch / running inference
 
@@ -223,7 +226,11 @@ docker compose run --rm -e CUDA_VISIBLE_DEVICES=0 qcnet bash
 
 - [`docs/BUILD_GOTCHAS.md`](docs/BUILD_GOTCHAS.md) — real build issues and fixes, worth
   reading before adding a repo.
-- [`docs/DATASETS.md`](docs/DATASETS.md) — exact steps for the two remaining data gaps.
+- [`docs/DATASETS.md`](docs/DATASETS.md) — dataset status and exact steps for the
+  remaining Waymo `scenario` gap.
+- [`docs/TRAINING_PLAN.md`](docs/TRAINING_PLAN.md) — which repos need training from
+  scratch to get any result at all (no checkpoint exists), a sane order to attempt
+  them in, and realistic expectations for 2 GPUs vs. the 4-8 most papers used.
 - [`docs/REPO_ASSESSMENT.md`](docs/REPO_ASSESSMENT.md) — which of these 10 are actually
   worth building on as a research baseline versus just useful for comparison, and what's
   missing from the shortlist entirely.

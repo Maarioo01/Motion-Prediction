@@ -78,8 +78,9 @@ larger, separate Perception dataset), so it should fit comfortably in whatever's
 on `/raid`, but `gsutil du -sh` above will tell you exactly before committing to the
 full pull.
 
-Once downloaded, update `docker-compose.yml`'s volume mounts for `trajflow`,
-`sceneinformer`, and `gameformer` to also mount `/raid/waymo/scenario` (they currently
-only mount `/raid/waymo` for the `tf_example` data), then follow each repo's own data
-preprocessing step (`TrajFlow`: `trajflow/datasets/waymo/data_preprocess.py`;
+No `docker-compose.yml` changes needed once downloaded — `trajflow`, `sceneinformer`,
+and `gameformer` already mount the whole `/raid/waymo` directory (not just
+`tf_example`), so `scenario/` appears at `/data/waymo/scenario` inside each container
+automatically (verified). What's left is each repo's own data preprocessing step
+(`TrajFlow`: `trajflow/datasets/waymo/data_preprocess.py`;
 `SceneInformer`: `process_dataset.sh`; `GameFormer`: `interaction_prediction/data_process.py`).
