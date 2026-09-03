@@ -113,6 +113,8 @@ services:
     ipc: host
     volumes:
       - ./repos/CMP:/workspace
+      - /raid/datasets/OPV2V:/data/opv2v:ro
+      - /raid/datasets/V2V4Real:/data/v2v4real:ro
     working_dir: /workspace
     stdin_open: true
     tty: true

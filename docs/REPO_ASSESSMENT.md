@@ -45,10 +45,11 @@ from it in anything released).
 **CMP** is the one repo here that's directly a cooperative-prediction pipeline
 (OpenCOOD detection + AB3Dmot tracking + MTR prediction), which matches the eventual
 thesis direction — but it's also the least production-ready thing in the bench: pinned
-to Python 3.7 (EOL, see `BUILD_GOTCHAS.md`), no license stated, and its two datasets
-(OPV2V, V2V4Real) weren't even on disk until this session. Good to have working *now*,
-premature to build the actual thesis contribution on top of *yet* — revisit once the
-V2X datasets are in and you've had a chance to read its architecture properly.
+to Python 3.7 (EOL, see `BUILD_GOTCHAS.md`) and no license stated. Its two datasets
+(OPV2V, V2V4Real) are now downloaded (197GB + 41GB on `/raid/datasets/`, mounted into
+the `cmp` service) — good to have working *and* fed *now*, still premature to build the
+actual thesis contribution on top of until you've had a chance to read its architecture
+properly.
 
 **Pretraining-on-Synthetic** is a narrower, DenseTNT-lineage pretrain/fine-tune recipe
 — useful less as a baseline to beat and more as a technique (synthetic-map

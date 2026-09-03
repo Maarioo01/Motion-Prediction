@@ -9,3 +9,6 @@ __pycache__/
 *.pyc
 .DS_Store
 *.swp
+
+# Claude Code session state, not project content
+/.claude/

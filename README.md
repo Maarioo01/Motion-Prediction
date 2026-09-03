@@ -85,7 +85,7 @@ fresh instead, at whatever commit is current upstream (not pinned - see the note
 | [StreamingForecasting](https://github.com/ziqipang/StreamingForecasting) | 7 | ⏭️ not built (skipped) | Argoverse 1 (present) | ✅ VectorNet checkpoint | MIT |
 | [emp](https://github.com/a-pru/emp) | 8 | ✅ working | `/raid/argoverse2` (present) | ✅ EMP-M / EMP-D bundled | BSD-3-Clause |
 | [SceneInformer](https://github.com/sisl/SceneInformer) | 9 | ✅ working, env only | Waymo **scenario** format — see [Data gaps](#data-gaps) | ❌ | MIT |
-| [CMP](https://github.com/tasl-lab/CMP) | 10 | ✅ working, env only | OPV2V + V2V4Real — see [Data gaps](#data-gaps) | see repo's `docs/prepare_dataset_checkpoints.md` | none stated |
+| [CMP](https://github.com/tasl-lab/CMP) | 10 | ✅ working | `/raid/datasets/OPV2V` + `/raid/datasets/V2V4Real` (present) | see repo's `docs/prepare_dataset_checkpoints.md` | none stated |
 | [V2I_trajectory_prediction](https://github.com/xichennn/V2I_trajectory_prediction) | 11 | ⏭️ not built (skipped) | V2X-Seq (not present) | ❌ | none (all rights reserved by default) |
 | [Pretraining-on-Synthetic](https://github.com/yhli123/Pretraining_on_Synthetic_Driving_Data_for_Trajectory_Prediction) | 12 | ✅ working | `/raid/argoverse1_1` + bundled synthetic set (present) | ✅ bundled in-repo (`pretrain/`, `finetune/`) | MIT |
 | [UniAD](https://github.com/opendrivelab/uniad) | — (perception) | ✅ working | `/raid/nuscenes` (present) | ✅ Stage1 (perception) + Stage2 (planning), GitHub releases | Apache-2.0 |
@@ -99,19 +99,16 @@ remain in `setup.sh --all` if wanted later.
 
 ## Data gaps
 
-Two real gaps remain, both about datasets, not environments:
+OPV2V and V2V4Real (needed by CMP) are done — 197GB and 41GB respectively at
+`/raid/datasets/`, already mounted into the `cmp` service. One gap remains:
 
 - **Waymo Open Motion Dataset, `scenario` format.** `/raid/waymo` currently only has the
   `tf_example` format (flattened tensors); TrajFlow, SceneInformer, and GameFormer all
   need the `scenario` format instead (protobuf `Scenario` messages) — a separate
-  download from the same WOMD release, not a conversion of what's already there.
-- **OPV2V + V2V4Real**, needed by CMP (its actual research relevance: both are
-  cooperative/V2X datasets).
-
-Both require the requester's own Google/institutional account to accept a dataset
-license agreement before downloading — this can't be done unattended. See
-[`docs/DATASETS.md`](docs/DATASETS.md) for the exact steps and commands to run once
-you've accepted the relevant agreements.
+  download from the same WOMD release, not a conversion of what's already there. Unlike
+  OPV2V/V2V4Real, this one needs your own Google account to accept Waymo's dataset
+  license before it can be downloaded — see [`docs/DATASETS.md`](docs/DATASETS.md) for
+  the exact steps and commands.
 
 ## Training from scratch / running inference
 
