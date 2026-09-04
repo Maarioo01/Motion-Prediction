@@ -49,9 +49,27 @@ clone_and_overlay() {
   fi
 }
 
+# Some repos have real bugs in their own source (not just environment/dependency
+# issues), fixed in place and preserved here so a fresh `setup.sh` run doesn't have to
+# rediscover them - see docker/<name>/patches/ and docs/BUILD_GOTCHAS.md for what/why.
+apply_patches() {
+  local name="$1"
+  [ -d "docker/$name/patches" ] || return 0
+  case "$name" in
+    SceneInformer)
+      echo "[setup] applying docker/SceneInformer/patches (protobuf bytes fix, DDP strategy fix, filled-in config paths - see BUILD_GOTCHAS.md)"
+      cp "docker/SceneInformer/patches/waymo_utils.py" "repos/SceneInformer/sceneinformer/utils/waymo_utils.py"
+      cp "docker/SceneInformer/patches/train_lightning.py" "repos/SceneInformer/scripts/train_lightning.py"
+      cp "docker/SceneInformer/patches/scene_informer.yaml" "repos/SceneInformer/configs/scene_informer.yaml"
+      cp "docker/SceneInformer/patches/scene_informer_smoketest.yaml" "repos/SceneInformer/configs/scene_informer_smoketest.yaml"
+      ;;
+  esac
+}
+
 mkdir -p repos
 for name in "${!REPOS[@]}"; do
   clone_and_overlay "$name" "${REPOS[$name]}"
+  apply_patches "$name"
 done
 
 if [ "$1" == "--all" ]; then

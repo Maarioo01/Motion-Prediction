@@ -17,7 +17,8 @@ Every repo here pins its own, usually incompatible, Python/PyTorch/CUDA combinat
 they range from Python 3.7 to 3.10, CUDA 11.1 to 12.1, and several pull in TensorFlow
 alongside PyTorch. A single shared environment isn't feasible; isolation is the point.
 What's shared instead: this one `docker-compose.yml`, the dataset mounts from `/raid`,
-and the two GPUs on this machine.
+and GPU0 on this machine (see [GPU allocation](#gpu-allocation) — the second card has
+its own problems).
 
 ## Quick start
 
@@ -79,12 +80,12 @@ fresh instead, at whatever commit is current upstream (not pinned - see the note
 |---|---|---|---|---|---|
 | [QCNet](https://github.com/ZikangZhou/QCNet) | 1 | ✅ working | `/raid/argoverse2` (present) | ✅ [AV2 marginal](https://drive.google.com/file/d/1OKBytt6N6BdRa9FWmS7F1-YvF0YectBv/view) | Apache-2.0 |
 | [UniTraj](https://github.com/vita-epfl/UniTraj) | 2 | ✅ working | AV2/Waymo/nuScenes (present; ScenarioNet conversion not run) | ❌ train-from-scratch by design | AGPLv3 (copyleft) |
-| [GameFormer](https://github.com/MCZhi/GameFormer) | 3 | ✅ working, env only | Waymo **scenario** format — see [Data gaps](#data-gaps) | ❌ | none stated |
+| [GameFormer](https://github.com/MCZhi/GameFormer) | 3 | ✅ working, data present | `/raid/waymo/scenario` (present); preprocessing/training not yet attempted | ❌ | none stated |
 | [RealMotion](https://github.com/fudan-zvg/RealMotion) | 4 | ✅ working | `/raid/argoverse2` (present) | ✅ [RealMotion-I](https://drive.google.com/file/d/1MY4OfoEdoqFTdfDrHqcmo1pAUgUz1Gea/view) / [RealMotion](https://drive.google.com/file/d/1qyT0HHTMtpsvGy6YFo-jlp-1b-oNGbMr/view) | none stated |
-| [TrajFlow](https://github.com/DSL-Lab/TrajFlow) | 5-6 | ✅ working, env only | Waymo **scenario** format — see [Data gaps](#data-gaps) | ❌ | MIT |
+| [TrajFlow](https://github.com/DSL-Lab/TrajFlow) | 5-6 | ✅ working, data present | `/raid/waymo/scenario` (present, v1.3.0 - confirm this matches TrajFlow's expected version); preprocessing/training not yet attempted | ❌ | MIT |
 | [StreamingForecasting](https://github.com/ziqipang/StreamingForecasting) | 7 | ⏭️ not built (skipped) | Argoverse 1 (present) | ✅ VectorNet checkpoint | MIT |
 | [emp](https://github.com/a-pru/emp) | 8 | ✅ working | `/raid/argoverse2` (present) | ✅ EMP-M / EMP-D bundled | BSD-3-Clause |
-| [SceneInformer](https://github.com/sisl/SceneInformer) | 9 | ✅ working, env only | Waymo **scenario** format — see [Data gaps](#data-gaps) | ❌ | MIT |
+| [SceneInformer](https://github.com/sisl/SceneInformer) | 9 | ✅ working, training verified on GPU0 | `/raid/waymo/scenario` (present); full 4-stage preprocessing pipeline not yet run at full scale, only on a small staged subset — see [`TRAINING_PLAN.md`](docs/TRAINING_PLAN.md) | ❌ | MIT |
 | [CMP](https://github.com/tasl-lab/CMP) | 10 | ✅ working | `/raid/datasets/OPV2V` + `/raid/datasets/V2V4Real` (present) | see repo's `docs/prepare_dataset_checkpoints.md` | none stated |
 | [V2I_trajectory_prediction](https://github.com/xichennn/V2I_trajectory_prediction) | 11 | ⏭️ not built (skipped) | V2X-Seq (not present) | ❌ | none (all rights reserved by default) |
 | [Pretraining-on-Synthetic](https://github.com/yhli123/Pretraining_on_Synthetic_Driving_Data_for_Trajectory_Prediction) | 12 | ✅ working | `/raid/argoverse1_1` + bundled synthetic set (present) | ✅ bundled in-repo (`pretrain/`, `finetune/`) | MIT |
@@ -99,19 +100,15 @@ remain in `setup.sh --all` if wanted later.
 
 ## Data gaps
 
-OPV2V and V2V4Real (needed by CMP) are done — 197GB and 41GB respectively at
-`/raid/datasets/`, already mounted into the `cmp` service. One gap is in progress:
-
-- **Waymo Open Motion Dataset, `scenario` format.** `/raid/waymo` had only the
-  `tf_example` format (flattened tensors) until now; TrajFlow, SceneInformer, and
-  GameFormer all need the `scenario` format instead (protobuf `Scenario` messages) — a
-  separate download from the same WOMD release, not a conversion. Currently
-  downloading to `/raid/waymo/scenario` (needed your own Google account to accept
-  Waymo's license first — see [`docs/DATASETS.md`](docs/DATASETS.md)). No
-  `docker-compose.yml` changes are needed once it finishes — those three services
-  already mount the whole `/raid/waymo` directory, so `scenario/` becomes visible
-  automatically; each repo's own preprocessing step is still required, see
-  [`docs/DATASETS.md`](docs/DATASETS.md).
+None remain. OPV2V and V2V4Real (needed by CMP) are done — 197GB and 41GB respectively
+at `/raid/datasets/`, mounted into the `cmp` service. Waymo's `scenario` format
+(needed by TrajFlow, SceneInformer, GameFormer, distinct from the `tf_example` format
+also present) finished downloading to `/raid/waymo/scenario` (222GB, all 5 splits
+confirmed complete: `training_20s`, `validation`, `testing`,
+`validation_interactive`, `testing_interactive`) — no `docker-compose.yml` changes were
+needed, those three services already mount the whole `/raid/waymo` directory. Each
+repo's own preprocessing step is still required before training — see
+[`docs/DATASETS.md`](docs/DATASETS.md) and [`docs/TRAINING_PLAN.md`](docs/TRAINING_PLAN.md).
 
 ## Training from scratch / running inference
 
@@ -215,12 +212,21 @@ alongside that result.
 
 ## GPU allocation
 
-Both containers request `gpus: all` by default (2×24GB GPUs total on this machine — a
-RTX 3090 and a 3090 Ti). Pin a container to one card when running two jobs at once:
+**GPU0 (RTX 3090) only, by design.** This machine has a second card (a 3090 Ti,
+GPU index 1) that has repeatedly wedged under load — `nvidia-smi` reports `Unable to
+determine the device handle: Unknown Error` with no process attached, and doesn't
+self-recover reliably. Worse, once it's in that state, `nvidia-container-cli` fails to
+launch *any* GPU container at all (it enumerates every GPU on the system regardless of
+which one you actually request), so a bad GPU1 blocks GPU0 too. Every service in
+`docker-compose.yml` is pinned to `device_ids: ["0"]` explicitly (not `gpus: all`) for
+exactly this reason — don't change this back without a real fix for GPU1's stability
+first, and don't add a service or ad-hoc `docker run` that requests GPU1 or `all`.
 
-```bash
-docker compose run --rm -e CUDA_VISIBLE_DEVICES=0 qcnet bash
-```
+If a container fails to start with `nvidia-container-cli: detection error: nvml error`,
+that's this issue recurring, not a config problem — check `nvidia-smi` for GPU1's
+status before assuming anything else is broken. Recovery is `sudo nvidia-smi -r -i 1`
+(resets only GPU1, not the whole machine, no reboot); if that doesn't clear it, don't
+escalate to a reboot unilaterally if no one has physical access to the machine.
 
 ## Docs
 

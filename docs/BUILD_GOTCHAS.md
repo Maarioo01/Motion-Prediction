@@ -4,6 +4,16 @@ Real issues hit while getting these 10 repos to build and run, kept here because
 same root causes will very likely recur on any new repo added to this project. See the
 main [README](../README.md) for the "adding a repo" workflow these apply to.
 
+- **GPU1 (the 3090 Ti) is unreliable and disabled by policy** — see the README's "GPU
+  allocation" section for the full story. The infra-relevant part: once GPU1 wedges
+  (`nvidia-smi` reports `Unable to determine the device handle: Unknown Error`),
+  **every** GPU container launch fails, not just ones requesting GPU1 — confirmed that
+  `docker run --gpus '"device=0"'` fails identically to `--gpus all` while GPU1 is
+  wedged, because `nvidia-container-cli` enumerates all GPUs on the system as part of
+  its own detection step regardless of which one you actually asked for. If you hit
+  `nvidia-container-cli: detection error: nvml error: unknown error`, check `nvidia-smi`
+  for GPU1's state before assuming it's a Docker/config problem - it very likely isn't.
+  Recovery is `sudo nvidia-smi -r -i 1` (targeted, no reboot needed).
 - **CUDA 11.x's `nvcc` refuses any host gcc newer than what that CUDA release
   supports** (e.g. cu11.8 rejects gcc>11 with "gcc versions later than 11 are not
   supported"). The `continuumio/miniconda3` base image (Debian bookworm) ships gcc-12,
@@ -111,3 +121,22 @@ main [README](../README.md) for the "adding a repo" workflow these apply to.
   cache for everything after it). Run `docker builder prune -f` whenever `/` free space
   gets tight — it only removes unreferenced build cache, never the tagged images
   themselves. This reclaimed 200GB+ multiple times over the course of this project.
+- **A working environment doesn't mean a repo's own code is bug-free** (SceneInformer,
+  discovered trying to actually train it, not just import-check it): its
+  `waymo_utils.py` calls `scenario.ParseFromString(bytearray(data.numpy()))`, which
+  modern `protobuf` rejects (`TypeError: expected bytes, bytearray found`) - older
+  protobuf accepted anything supporting the buffer protocol, current protobuf requires
+  actual `bytes`. Fixed in place (`bytearray(...)` → `bytes(...)`, two call sites) since
+  this is upstream source, not something a Dockerfile pin can fix. Also had a template
+  config (`configs/scene_informer.yaml`) with literal unfilled `path: PATH`
+  placeholders - `verify.sh`-style import checks won't catch either of these, only an
+  actual training attempt will. Don't assume "the environment works" means "the repo's
+  training path works" for anything not already covered by `verify.sh` or the Training
+  Plan's Track A checkpoint validation.
+- **`find_unused_parameters` errors under DDP** ("It looks like your LightningModule
+  has parameters that were not used in producing the loss") happen when a model has
+  conditional branches (SceneInformer's decoder has separate occlusion vs. observed
+  heads, not all used on every batch) - fine on 1 GPU, breaks on ≥2 under plain DDP.
+  Lightning's `Trainer(strategy="ddp_find_unused_parameters_true")` fixes it *when it
+  applies* - moot here now that GPU1 is disabled, but the fix is real and worth knowing
+  if multi-GPU on a healthy pair of cards is ever back on the table.

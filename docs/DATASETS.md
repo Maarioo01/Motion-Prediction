@@ -1,10 +1,12 @@
 # Datasets
 
-Status as of the datasets actually landing: Argoverse 1, Argoverse 2, nuScenes, Waymo
-`tf_example`, OPV2V, and V2V4Real are all on `/raid`. Waymo's `scenario` format is the
-one gap left, gated behind an account/license step only you can do.
+All datasets these 10 repos need are on `/raid`: Argoverse 1, Argoverse 2, nuScenes,
+Waymo `tf_example`, Waymo `scenario`, OPV2V, and V2V4Real. No account-gated downloads
+remain. What's left per-repo is each one's own *preprocessing* step (raw data → the
+format that repo's dataloader actually expects), which is real work in its own right —
+see [`TRAINING_PLAN.md`](TRAINING_PLAN.md).
 
-## OPV2V + V2V4Real — done, already mounted
+## OPV2V + V2V4Real
 
 Needed by CMP, and directly relevant to the V2X research direction (see
 [`PHD_ROADMAP.md`](PHD_ROADMAP.md)). **Both are fully downloaded and extracted**, at
@@ -35,12 +37,35 @@ official sources are:
   OPV2V-format LiDAR+Labels version is what's downloaded here (matches what CMP's
   OpenCOOD-based pipeline expects), not the separate KITTI-format one.
 
-## Waymo Open Motion Dataset, `scenario` format — the one remaining gap
+## Waymo Open Motion Dataset, `scenario` format
 
-Needed by TrajFlow, SceneInformer, GameFormer. `/raid/waymo` currently only has the
-`tf_example` format — this is a genuinely separate download, not a conversion.
+Needed by TrajFlow, SceneInformer, GameFormer — distinct from the `tf_example` format
+also on `/raid` (flattened tensors; `scenario` is protobuf `Scenario` messages, a
+separate download from the same WOMD release, not a conversion of what's already
+there). **Fully downloaded** at `/raid/waymo/scenario` (222GB), all 5 splits confirmed
+complete: `training_20s` (1000 shards), `validation` (150), `testing` (150),
+`validation_interactive` (150), `testing_interactive` (150).
 
-**One-time human step** (can't be done unattended — it needs your own Google identity):
+No `docker-compose.yml` changes were needed — `trajflow`, `sceneinformer`, and
+`gameformer` already mount the whole `/raid/waymo` directory (not just `tf_example`),
+so `scenario/` appears at `/data/waymo/scenario` inside each container automatically
+(verified).
+
+**What's still needed is each repo's own preprocessing** — raw `scenario` tfrecords
+aren't directly trainable, each repo has its own pipeline converting them into its own
+format:
+
+- **SceneInformer**: a 4-stage pipeline (`scripts/collect_raw_meas.py` →
+  `scripts/generate_occlusion_dataset.py` [the slow step] →
+  `scripts/generate_dataset_summary.py` → `scripts/index_dataset.py`), **verified
+  working end-to-end** on a small staged subset this session (see
+  [`TRAINING_PLAN.md`](TRAINING_PLAN.md) for the exact commands and two real upstream
+  bugs that had to be patched first). Not yet run at full scale (1000/150 shards).
+- **TrajFlow**: `trajflow/datasets/waymo/data_preprocess.py` — not yet attempted.
+- **GameFormer**: `interaction_prediction/data_process.py` — not yet attempted.
+
+**If you ever need to redo the raw download** (a fresh machine, a corrupted shard,
+etc.), it needs your own Google account — this part can't be done unattended:
 
 1. Go to **https://waymo.com/open/licensing/**, sign in with any Google account, and
    accept the Waymo Dataset License Agreement (non-commercial use). Any personal Gmail
@@ -51,36 +76,14 @@ Needed by TrajFlow, SceneInformer, GameFormer. `/raid/waymo` currently only has 
    ```bash
    gcloud auth login
    ```
-
-**Then, download** (bucket path structure verified; anonymous access returns `401`
-without steps 1+2 first):
-
-```bash
-# Cheap first: see what's actually there before committing to a full pull
-gsutil ls gs://waymo_open_dataset_motion_v_1_3_0/uncompressed/scenario/
-gsutil du -sh gs://waymo_open_dataset_motion_v_1_3_0/uncompressed/scenario/
-
-# One shard, to sanity-check before pulling everything
-gsutil cp gs://waymo_open_dataset_motion_v_1_3_0/uncompressed/scenario/validation/validation.tfrecord-00000-of-00150 /raid/waymo/scenario_test/
-
-# Full scenario-format release
-mkdir -p /raid/waymo/scenario
-gsutil -m cp -r gs://waymo_open_dataset_motion_v_1_3_0/uncompressed/scenario/training_20s /raid/waymo/scenario/
-gsutil -m cp -r gs://waymo_open_dataset_motion_v_1_3_0/uncompressed/scenario/validation /raid/waymo/scenario/
-gsutil -m cp -r gs://waymo_open_dataset_motion_v_1_3_0/uncompressed/scenario/testing /raid/waymo/scenario/
-# Also check for validation_interactive/ and testing_interactive/ once `gsutil ls`
-# above shows you the live listing - GameFormer's README specifically calls these out.
-```
-
-Waymo doesn't publish an official size figure for the scenario release. It's protobuf
-trajectories + map + traffic-light state only (not raw sensor data — that's the much
-larger, separate Perception dataset), so it should fit comfortably in whatever's free
-on `/raid`, but `gsutil du -sh` above will tell you exactly before committing to the
-full pull.
-
-No `docker-compose.yml` changes needed once downloaded — `trajflow`, `sceneinformer`,
-and `gameformer` already mount the whole `/raid/waymo` directory (not just
-`tf_example`), so `scenario/` appears at `/data/waymo/scenario` inside each container
-automatically (verified). What's left is each repo's own data preprocessing step
-(`TrajFlow`: `trajflow/datasets/waymo/data_preprocess.py`;
-`SceneInformer`: `process_dataset.sh`; `GameFormer`: `interaction_prediction/data_process.py`).
+3. Download (bucket path structure verified; anonymous access returns `401` without
+   steps 1+2 first):
+   ```bash
+   gsutil ls gs://waymo_open_dataset_motion_v_1_3_0/uncompressed/scenario/
+   mkdir -p /raid/waymo/scenario
+   gsutil -m cp -r gs://waymo_open_dataset_motion_v_1_3_0/uncompressed/scenario/training_20s /raid/waymo/scenario/
+   gsutil -m cp -r gs://waymo_open_dataset_motion_v_1_3_0/uncompressed/scenario/validation /raid/waymo/scenario/
+   gsutil -m cp -r gs://waymo_open_dataset_motion_v_1_3_0/uncompressed/scenario/testing /raid/waymo/scenario/
+   gsutil -m cp -r gs://waymo_open_dataset_motion_v_1_3_0/uncompressed/scenario/validation_interactive /raid/waymo/scenario/
+   gsutil -m cp -r gs://waymo_open_dataset_motion_v_1_3_0/uncompressed/scenario/testing_interactive /raid/waymo/scenario/
+   ```
