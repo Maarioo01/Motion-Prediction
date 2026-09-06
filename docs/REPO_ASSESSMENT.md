@@ -47,9 +47,14 @@ from it in anything released).
 thesis direction — but it's also the least production-ready thing in the bench: pinned
 to Python 3.7 (EOL, see `BUILD_GOTCHAS.md`) and no license stated. Its two datasets
 (OPV2V, V2V4Real) are now downloaded (197GB + 41GB on `/raid/datasets/`, mounted into
-the `cmp` service) — good to have working *and* fed *now*, still premature to build the
-actual thesis contribution on top of until you've had a chance to read its architecture
-properly.
+the `cmp` service), and it ships real checkpoints for both — perception (CoBEVT/V2VNet)
+and prediction (4 ablation variants each: no-cooperation, cooperative-perception-only,
+full CMP, V2VNet baseline), see `docs/TRAINING_PLAN.md`'s Track A — so validating it
+against a known number is cheap, not a training commitment. Still premature to build
+the actual thesis contribution on top of until you've had a chance to read its
+architecture properly, but the ablation checkpoints it already ships are worth reading
+closely first — they're a ready-made comparison of exactly the "how much does
+cooperation help" question this thesis direction cares about.
 
 **Pretraining-on-Synthetic** is a narrower, DenseTNT-lineage pretrain/fine-tune recipe
 — useful less as a baseline to beat and more as a technique (synthetic-map

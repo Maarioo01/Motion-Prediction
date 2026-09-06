@@ -20,6 +20,7 @@ that doesn't have one to check against.
 | emp | bundled (EMP-M / EMP-D) | `python eval.py data_root=/data/argoverse2 batch_size=32 'checkpoint="<path>"'` |
 | Pretraining-on-Synthetic | bundled in `pretrain/`, `finetune/` | see the repo's own `bash/` scripts — didn't verify the exact eval command this session |
 | UniAD | Stage1 + Stage2, GitHub releases | two-stage, via `tools/` — see `repos/UniAD/docs/`, didn't verify exact commands this session |
+| CMP | [perception ckpts](https://drive.google.com/drive/folders/1EizY6ZFMi__HnqeFPQ2Wf9yRJeD_-S82) (CoBEVT/V2VNet, both OPV2V+V2V4Real) + [prediction ckpts](https://drive.google.com/drive/folders/1ZUJ5a5VuNfxV34I9FmIefHDGixaJ7gM2) (4 variants each: no-coop, coop-perception-only, full CMP, V2VNet baseline) | see `repos/CMP/docs/prepare_dataset_checkpoints.md` for the exact `pretrained/`/`MTR/output/` folder layout each checkpoint set expects — this was missed in the first pass through the repos and moves CMP out of Track B entirely |
 
 Download each checkpoint yourself (Google Drive links, manual — Drive throttles
 scripted bulk downloads the same way Box did for OPV2V/V2V4Real), then either bind-mount
@@ -94,15 +95,25 @@ running it as a detached background job rather than watching it).
 
 ### 2. GameFormer
 
-No hard compute numbers were confirmed for this one this session — get a shell and
-check `repos/GameFormer/README.md`'s training section before committing to a long run:
+Preprocessing (`interaction_prediction/data_process.py`) is verified working — but only
+against the **plain `training`/`validation`/`testing` Waymo split, not `training_20s`**
+(the one downloaded for SceneInformer). The two splits are different scenario
+populations: `training_20s` has `tracks_to_predict` always empty, which is what
+`data_process.py` keys off, so it crashed with `KeyError: <id>` on `training_20s` (a
+real upstream bug, patched — see `BUILD_GOTCHAS.md` and
+`docker/GameFormer/patches/data_process.py`) and, after the crash-fix, silently produces
+**zero output** on `training_20s` regardless. Confirmed the fix and the pipeline both
+work correctly against the real `validation` split instead: 3 shards → 7403
+correctly-shaped `.npz` files.
 
 ```bash
-docker compose run --rm gameformer bash
-# then: cd interaction_prediction && cat README.md  (or wherever the training script lives)
+docker compose run --rm gameformer bash -c "cd interaction_prediction && python data_process.py --load_path <raw_dir> --save_path ../data_staging/processed --use_multiprocessing --processes 16"
 ```
 
-Needs the same Waymo `scenario` data + its own `data_process.py` preprocessing step.
+**The plain `training` split (1000 shards) is not yet downloaded** (`/raid/waymo/scenario`
+only has `training_20s`, `validation`, `testing`, `validation_interactive`,
+`testing_interactive`) — needed before a real training run, same gap as TrajFlow below.
+See `DATASETS.md` for the `gsutil` command once re-authenticated.
 
 ### 3. UniTraj — do the smoke test first, separately from real training
 
@@ -120,21 +131,44 @@ incrementally even though the first setup isn't.
 
 ### 4. TrajFlow
 
-The repo's own default recipe is explicitly **4-GPU**: `bash scripts/dist_train.sh 4
---cfg_file cfgs/waymo/trajflow+100_percent_data.yaml --epoch 40 --batch_size 80`. On
-this machine's single usable GPU, set the device count to `1` and reduce `--batch_size`
-proportionally (try 20, watch GPU memory) rather than assuming it just works
-unmodified — this wasn't tested at reduced scale this session, so treat the first run
-as a dry run to confirm it doesn't OOM before trusting the results.
+Preprocessing (`trajflow/datasets/waymo/data_preprocess.py`) is verified working —
+tested against a small staged subset covering all 5 expected subfolders
+(`training`/`validation`/`testing`/`validation_interactive`/`testing_interactive`).
+Unlike SceneInformer, its `ParseFromString(bytearray(...))` call doesn't hit the
+protobuf bug (this image's protobuf 3.20.3 still accepts `bytearray`, only newer
+protobuf rejects it). It handles a missing/empty split gracefully (an empty `training/`
+folder just yields 0 infos, no crash) rather than erroring, which is how the same
+**missing plain `training` split** gap as GameFormer above was confirmed here too — the
+existing `validation`/`testing`/`*_interactive` splits process correctly (right shapes,
+right file layout), but a real training run needs the still-undownloaded `training`
+split.
 
-### 5. CMP — check for a checkpoint before assuming you need to train
+```bash
+docker compose run --rm trajflow bash -c "cd trajflow/datasets/waymo && python data_preprocess.py <raw_data_path> ../../../data_staging/processed"
+```
 
-The repo has a `docs/prepare_dataset_checkpoints.md` that wasn't fully read this
-session — check it first; there may already be a checkpoint available, which would
-move this into Track A instead. If not, per `REPO_ASSESSMENT.md`'s advice: a first
-training run here is worth doing as a "does the pipeline actually train
-end-to-end" technical check, separate from building your actual thesis contribution
-on top of it (hold off on the latter until you've read its architecture properly).
+`<raw_data_path>` needs `training/`, `validation/`, `testing/`, `validation_interactive/`,
+`testing_interactive/` subdirectories directly containing the matching raw tfrecords
+(symlink from `/data/waymo/scenario/<split>/` per file, same pattern as SceneInformer).
+
+The repo's own default training recipe is explicitly **4-GPU**: `bash
+scripts/dist_train.sh 4 --cfg_file cfgs/waymo/trajflow+100_percent_data.yaml --epoch 40
+--batch_size 80`. On this machine's single usable GPU, set the device count to `1` and
+reduce `--batch_size` proportionally (try 20, watch GPU memory) rather than assuming it
+just works unmodified — this wasn't tested at reduced scale this session, so treat the
+first run as a dry run to confirm it doesn't OOM before trusting the results.
+
+### 5. CMP — has checkpoints, moved to Track A
+
+Checked `docs/prepare_dataset_checkpoints.md`: CMP ships both perception checkpoints
+(CoBEVT/V2VNet, both datasets) and prediction checkpoints (4 variants: no-cooperation,
+cooperative-perception-only, the full CMP model, and a V2VNet baseline — useful
+ablations already done for you), all via Google Drive — see the Track A table above.
+Nothing to train from scratch here unless you want to reproduce the paper's numbers
+yourself rather than validate against them. Once validated, per `REPO_ASSESSMENT.md`'s
+advice: treat a first training run as a "does the pipeline train end-to-end" technical
+check, separate from building your actual thesis contribution on top of it (hold off on
+the latter until you've read its architecture properly).
 
 ## General GPU/batch-size adjustment
 

@@ -52,6 +52,7 @@ services:
     volumes:
       - ./repos/TrajFlow:/workspace
       - /raid/waymo:/data/waymo:ro
+      - /raid/scratch/trajflow_data_staging:/workspace/data_staging
     working_dir: /workspace
     stdin_open: true
     tty: true
@@ -71,6 +72,7 @@ services:
     volumes:
       - ./repos/SceneInformer:/workspace
       - /raid/waymo:/data/waymo:ro
+      - /raid/scratch/sceneinformer_data_staging:/workspace/data_staging
     working_dir: /workspace
     stdin_open: true
     tty: true
@@ -128,6 +130,7 @@ services:
     volumes:
       - ./repos/GameFormer:/workspace
       - /raid/waymo:/data/waymo:ro
+      - /raid/scratch/gameformer_data_staging:/workspace/data_staging
     working_dir: /workspace
     stdin_open: true
     tty: true

@@ -80,12 +80,12 @@ fresh instead, at whatever commit is current upstream (not pinned - see the note
 |---|---|---|---|---|---|
 | [QCNet](https://github.com/ZikangZhou/QCNet) | 1 | ✅ working | `/raid/argoverse2` (present) | ✅ [AV2 marginal](https://drive.google.com/file/d/1OKBytt6N6BdRa9FWmS7F1-YvF0YectBv/view) | Apache-2.0 |
 | [UniTraj](https://github.com/vita-epfl/UniTraj) | 2 | ✅ working | AV2/Waymo/nuScenes (present; ScenarioNet conversion not run) | ❌ train-from-scratch by design | AGPLv3 (copyleft) |
-| [GameFormer](https://github.com/MCZhi/GameFormer) | 3 | ✅ working, data present | `/raid/waymo/scenario` (present); preprocessing/training not yet attempted | ❌ | none stated |
+| [GameFormer](https://github.com/MCZhi/GameFormer) | 3 | ✅ working, preprocessing verified | `/raid/waymo/scenario` — needs the plain `training` split (not yet downloaded, only `training_20s`); preprocessing verified end-to-end against `validation` (7403 `.npz` from 3 shards) after fixing a real upstream bug, see [`TRAINING_PLAN.md`](docs/TRAINING_PLAN.md) | ❌ | none stated |
 | [RealMotion](https://github.com/fudan-zvg/RealMotion) | 4 | ✅ working | `/raid/argoverse2` (present) | ✅ [RealMotion-I](https://drive.google.com/file/d/1MY4OfoEdoqFTdfDrHqcmo1pAUgUz1Gea/view) / [RealMotion](https://drive.google.com/file/d/1qyT0HHTMtpsvGy6YFo-jlp-1b-oNGbMr/view) | none stated |
-| [TrajFlow](https://github.com/DSL-Lab/TrajFlow) | 5-6 | ✅ working, data present | `/raid/waymo/scenario` (present, v1.3.0 - confirm this matches TrajFlow's expected version); preprocessing/training not yet attempted | ❌ | MIT |
+| [TrajFlow](https://github.com/DSL-Lab/TrajFlow) | 5-6 | ✅ working, preprocessing verified | `/raid/waymo/scenario` — same missing plain `training` split gap as GameFormer; preprocessing verified against `validation`/`testing`/`*_interactive` splits, see [`TRAINING_PLAN.md`](docs/TRAINING_PLAN.md) | ❌ | MIT |
 | [StreamingForecasting](https://github.com/ziqipang/StreamingForecasting) | 7 | ⏭️ not built (skipped) | Argoverse 1 (present) | ✅ VectorNet checkpoint | MIT |
 | [emp](https://github.com/a-pru/emp) | 8 | ✅ working | `/raid/argoverse2` (present) | ✅ EMP-M / EMP-D bundled | BSD-3-Clause |
-| [SceneInformer](https://github.com/sisl/SceneInformer) | 9 | ✅ working, training verified on GPU0 | `/raid/waymo/scenario` (present); full 4-stage preprocessing pipeline not yet run at full scale, only on a small staged subset — see [`TRAINING_PLAN.md`](docs/TRAINING_PLAN.md) | ❌ | MIT |
+| [SceneInformer](https://github.com/sisl/SceneInformer) | 9 | ✅ working, training verified on GPU0 | `/raid/waymo/scenario` (present); stage 1 of the 4-stage preprocessing pipeline completed at full scale (1000 training + 150 validation shards); stages 2-4 not yet run at full scale — see [`TRAINING_PLAN.md`](docs/TRAINING_PLAN.md) | ❌ | MIT |
 | [CMP](https://github.com/tasl-lab/CMP) | 10 | ✅ working | `/raid/datasets/OPV2V` + `/raid/datasets/V2V4Real` (present) | see repo's `docs/prepare_dataset_checkpoints.md` | none stated |
 | [V2I_trajectory_prediction](https://github.com/xichennn/V2I_trajectory_prediction) | 11 | ⏭️ not built (skipped) | V2X-Seq (not present) | ❌ | none (all rights reserved by default) |
 | [Pretraining-on-Synthetic](https://github.com/yhli123/Pretraining_on_Synthetic_Driving_Data_for_Trajectory_Prediction) | 12 | ✅ working | `/raid/argoverse1_1` + bundled synthetic set (present) | ✅ bundled in-repo (`pretrain/`, `finetune/`) | MIT |
@@ -197,8 +197,15 @@ account for nearly every build failure hit so far.
    `repos/<Name>/requirements.txt` at fetch time.
 4. Add the repo + its clone URL to the `REPOS` array in `setup.sh`.
 5. Add a service block to `docker-compose.yml`, copying an existing one: `build:
-   ./repos/<Name>`, `image: motion-prediction/<name>:latest`, `gpus: all`, the right
-   dataset volume mount(s) from `/raid` (read-only), and `./repos/<Name>:/workspace`.
+   ./repos/<Name>`, `image: motion-prediction/<name>:latest`, the `deploy.resources.
+   reservations.devices` block pinning `device_ids: ["0"]` (see "GPU allocation" below —
+   never `gpus: all`), the right dataset volume mount(s) from `/raid` (read-only), and
+   `./repos/<Name>:/workspace`. If the repo has its own preprocessing step that writes
+   output under the repo (e.g. a `data_staging/` convention used by SceneInformer/
+   GameFormer/TrajFlow), also mount scratch space from `/raid` over that specific
+   subpath (`/raid/scratch/<name>_data_staging:/workspace/data_staging`) rather than
+   letting it land on the OS disk — see the "repos/ lives on the OS disk" gotcha in
+   `BUILD_GOTCHAS.md` for why this matters.
 6. `./setup.sh && docker compose build <name>`, then iterate on failures.
 7. Add an entry to the `CHECKS` array in `verify.sh` — a quick `python -c "import ...;
    assert torch.cuda.is_available()"` covering the key libraries and, if applicable, the

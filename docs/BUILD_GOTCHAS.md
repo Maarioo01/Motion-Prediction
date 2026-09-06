@@ -140,3 +140,42 @@ main [README](../README.md) for the "adding a repo" workflow these apply to.
   Lightning's `Trainer(strategy="ddp_find_unused_parameters_true")` fixes it *when it
   applies* - moot here now that GPU1 is disabled, but the fix is real and worth knowing
   if multi-GPU on a healthy pair of cards is ever back on the table.
+- **`repos/` lives on the OS disk, not `/raid`** — easy to forget since every dataset
+  mount in `docker-compose.yml` points at `/raid`, but a repo's own *preprocessing
+  output* (unless a service explicitly mounts scratch space) lands in
+  `repos/<Name>/data_staging/`, which is a normal directory under the git working tree,
+  physically on `/dev/nvme0n1p2` (the ~930GB root disk `/`), not the 7.3TB `/raid`
+  array. This machine's root disk had only **63GB free** (93% used, and most of the
+  other ~600GB is unreadable-to-us usage under another user's `/home/guest` — not
+  something to investigate or clean up) when SceneInformer's stage-1 preprocessing
+  output alone reached 146GB, discovered right before what would have been a much
+  larger stage-2 run — filling that disk on a headless remote machine risks the OS
+  itself, not just the job. Fixed by moving each repo's `data_staging/` to
+  `/raid/scratch/<name>_data_staging/` and adding a dedicated bind mount in
+  `docker-compose.yml` (`/raid/scratch/<name>_data_staging:/workspace/data_staging`)
+  that shadows the local path inside the container — every existing script/config
+  keeps working unchanged since they all reference the same relative `data_staging/...`
+  path, only where it physically lives changed. **Before starting any new large
+  preprocessing run, check `df -h / /raid` first** — don't assume free space just
+  because `/raid` has plenty.
+- **Waymo `scenario` isn't one dataloader-agnostic format** (GameFormer): its
+  `interaction_prediction/data_process.py` does `id_list[track.id]` for every id in
+  `parsed_data.objects_of_interest`, keyed off `tracks_to_predict` — crashes
+  (`KeyError: <id>`) the moment `objects_of_interest` isn't a subset of
+  `tracks_to_predict`. Root cause wasn't a code bug so much as a data-format mismatch:
+  the `training_20s` split (downloaded for SceneInformer's longer-horizon occlusion
+  pipeline) has `tracks_to_predict` **always empty** — confirmed directly by parsing a
+  few scenarios and printing both fields — while the standard `training`/`validation`/
+  `testing` split has it populated (3-7 entries/scenario) as GameFormer's preprocessing
+  expects. Patched `data_process.py` to skip ids not in `id_list` rather than crash
+  (`docker/GameFormer/patches/data_process.py`), but that only stops the crash — pointed
+  at `training_20s` it now runs clean and produces **zero output files** (every
+  scenario's `tracks_list` is empty, so `interactive_process()` never populates
+  `sdc_ids_list`). Verified against the real `validation` split instead (3 shards → 7403
+  correctly-shaped `.npz` files) to confirm the fix is actually sound, not just
+  crash-free. Lesson: a script running to completion with no exception is not the same
+  as it doing anything — check that output actually landed, especially when swallowing
+  a `KeyError` on data you haven't independently verified has the field you expect
+  populated. See [`TRAINING_PLAN.md`](TRAINING_PLAN.md) and
+  [`DATASETS.md`](DATASETS.md) for what this means for the still-missing plain
+  `training` split.

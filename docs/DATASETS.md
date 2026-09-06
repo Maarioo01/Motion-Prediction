@@ -42,9 +42,23 @@ official sources are:
 Needed by TrajFlow, SceneInformer, GameFormer — distinct from the `tf_example` format
 also on `/raid` (flattened tensors; `scenario` is protobuf `Scenario` messages, a
 separate download from the same WOMD release, not a conversion of what's already
-there). **Fully downloaded** at `/raid/waymo/scenario` (222GB), all 5 splits confirmed
-complete: `training_20s` (1000 shards), `validation` (150), `testing` (150),
-`validation_interactive` (150), `testing_interactive` (150).
+there). At `/raid/waymo/scenario` (222GB), 5 splits confirmed complete: `training_20s`
+(1000 shards), `validation` (150), `testing` (150), `validation_interactive` (150),
+`testing_interactive` (150).
+
+**`training_20s` is not a drop-in replacement for the plain `training` split** — they're
+different scenario populations, not just different clip lengths. Confirmed by directly
+parsing scenarios from each: `training_20s` has `tracks_to_predict` **always empty**,
+while plain `validation`/`testing` (and presumably plain `training`) have it populated
+(3-7 entries/scenario). SceneInformer's occlusion pipeline doesn't care (it doesn't use
+`tracks_to_predict`), which is why `training_20s` was downloaded in the first place —
+but GameFormer's `interaction_prediction/data_process.py` keys directly off
+`tracks_to_predict`, so it silently produces zero training examples against
+`training_20s` (see `BUILD_GOTCHAS.md`). **The plain `training` split (1000 shards, ~9s
+each, expect several hundred GB) is not yet downloaded** — needed before GameFormer can
+actually train (the existing `validation` split is enough to verify the pipeline itself,
+which it did: 7403 `.npz` files out of 3 shards). Same `gcloud`/`gsutil` steps as below,
+just `.../scenario/training` instead of `.../scenario/training_20s`.
 
 No `docker-compose.yml` changes were needed — `trajflow`, `sceneinformer`, and
 `gameformer` already mount the whole `/raid/waymo` directory (not just `tf_example`),

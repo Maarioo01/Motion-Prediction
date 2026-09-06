@@ -63,6 +63,10 @@ apply_patches() {
       cp "docker/SceneInformer/patches/scene_informer.yaml" "repos/SceneInformer/configs/scene_informer.yaml"
       cp "docker/SceneInformer/patches/scene_informer_smoketest.yaml" "repos/SceneInformer/configs/scene_informer_smoketest.yaml"
       ;;
+    GameFormer)
+      echo "[setup] applying docker/GameFormer/patches (objects_of_interest/tracks_to_predict KeyError fix - see BUILD_GOTCHAS.md)"
+      cp "docker/GameFormer/patches/data_process.py" "repos/GameFormer/interaction_prediction/data_process.py"
+      ;;
   esac
 }
 
