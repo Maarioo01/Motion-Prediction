@@ -187,6 +187,26 @@ advice: treat a first training run as a "does the pipeline train end-to-end" tec
 check, separate from building your actual thesis contribution on top of it (hold off on
 the latter until you've read its architecture properly).
 
+## Running CPU-bound preprocessing alongside a live GPU training run
+
+They don't compete for GPU, but they do compete for CPU — and a Lightning training
+job's dataloader workers are latency-sensitive in a way a batch preprocessing script
+isn't. Confirmed directly: launching GameFormer's full-scale preprocessing with
+`--processes 20` (on top of SceneInformer's training, whose `DataModule` uses
+`num_workers: 6`) dropped GPU0 utilization to ~1% and slowed training from ~1.05it/s to
+one iteration per ~19 seconds — the dataloader workers were being starved of CPU time,
+so the GPU sat idle waiting for batches. Dropping to `--processes 4` recovered training
+to near-full speed (~1it/s, 89-100% GPU). Rule of thumb: leave enough headroom for
+whatever's training (its `num_workers` plus a few cores for the main process), and
+launch any concurrent preprocessing well under the remaining budget, not at whatever a
+preprocessing script's own default happens to be — check `nvidia-smi`'s utilization
+column and the training log's it/s a minute after launching anything else, not just
+that the new job itself is progressing. Also don't run two preprocessing jobs at once
+without checking the combined footprint against a live training run first —
+TrajFlow's full preprocessing was deliberately held off (rather than launched alongside
+GameFormer's) until SceneInformer's training run finishes or there's a reason to
+believe the combined load is actually safe.
+
 ## General GPU/batch-size adjustment
 
 Most of these papers report results trained on 4-8 GPUs; this machine effectively has
