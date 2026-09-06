@@ -158,6 +158,31 @@ main [README](../README.md) for the "adding a repo" workflow these apply to.
   path, only where it physically lives changed. **Before starting any new large
   preprocessing run, check `df -h / /raid` first** — don't assume free space just
   because `/raid` has plenty.
+- **A pipe to `tail` (or any downstream command) silently swallows the real exit
+  code** — `docker compose run ... | tail -30` reports `tail`'s exit status (always 0),
+  not the container's. Caught this the hard way: SceneInformer's stage-3
+  `generate_dataset_summary.py` crashed with an unhandled `IndexError` on the very
+  first invocation, but the piped command still reported "exited with code 0" and it
+  looked like a clean run until the output directory turned out empty. Either check
+  `${PIPESTATUS[0]}` (bash) after a piped command, or just don't pipe through `tail`
+  when the exit code matters — let the full output land in the log file directly.
+- **A rare data-dependent type bug can hide behind a 99.998% pass rate**
+  (SceneInformer, `scripts/generate_dataset_summary.py`): `object_id_perspective` is
+  stored as `float64` in the vast majority of the 114638 stage-2 output `.h5` files but
+  `int64` in a few of them (an inconsistency from stage 2's own writer, not
+  investigated further since it's cheap to work around at the read side) - the script
+  reads `obj_idx = perspective_ids_tensor[t, perspective_idx]` and uses it directly as
+  a fancy array index two lines later, which only works when it happens to be an
+  integer dtype. Two lines below, `occluding_object_id` gets an explicit `int(...)`
+  cast before the same kind of use - `obj_idx` just didn't, for no principled reason.
+  Fixed by adding the same cast. Found by writing a throwaway parallel scan across all
+  114638 files (`joblib.Parallel` + a copy of the loop wrapped in try/except) rather
+  than guessing from the single stack trace, which named a scenario where `obj_idx`
+  happened to equal the last valid row index — a red herring that looked like an
+  off-by-one/out-of-bounds bug until the actual dtype was checked directly with
+  `h5py`. Only 2 of 114638 files actually hit it, which is exactly the kind of bug a
+  small-scale smoke test (a handful of files) will never surface - it only showed up
+  running stage 3 against the real, full-scale stage-2 output.
 - **Waymo `scenario` isn't one dataloader-agnostic format** (GameFormer): its
   `interaction_prediction/data_process.py` does `id_list[track.id]` for every id in
   `parsed_data.objects_of_interest`, keyed off `tracks_to_predict` — crashes

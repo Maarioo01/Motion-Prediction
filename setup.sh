@@ -62,6 +62,7 @@ apply_patches() {
       cp "docker/SceneInformer/patches/train_lightning.py" "repos/SceneInformer/scripts/train_lightning.py"
       cp "docker/SceneInformer/patches/scene_informer.yaml" "repos/SceneInformer/configs/scene_informer.yaml"
       cp "docker/SceneInformer/patches/scene_informer_smoketest.yaml" "repos/SceneInformer/configs/scene_informer_smoketest.yaml"
+      cp "docker/SceneInformer/patches/generate_dataset_summary.py" "repos/SceneInformer/scripts/generate_dataset_summary.py"
       ;;
     GameFormer)
       echo "[setup] applying docker/GameFormer/patches (objects_of_interest/tracks_to_predict KeyError fix - see BUILD_GOTCHAS.md)"
