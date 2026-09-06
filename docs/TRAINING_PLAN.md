@@ -33,35 +33,44 @@ cheapest/lowest-risk to most demanding, based on what's actually known about eac
 repo's compute footprint — not a strict sequence, just where to start building
 confidence before the heavier ones.
 
-### 1. SceneInformer — done, verified end-to-end (small-scale)
+### 1. SceneInformer — done, real training running on GPU0
 
 The original authors validated this on a single 24GB TITAN RTX — directly comparable
-to GPU0. This one is no longer theoretical: the full pipeline was run and a training
-step actually executed successfully this session. Two real upstream bugs had to be
-fixed first (both already patched in the live repo, see `BUILD_GOTCHAS.md` for
-detail):
+to GPU0. This is no longer a smoke test: the full 4-stage pipeline ran at full scale
+(1000 training + 150 validation Waymo `training_20s`/`validation` shards) and real
+training is now underway. Four real upstream bugs had to be fixed first (all patched
+in the live repo via `docker/SceneInformer/patches/` — see `BUILD_GOTCHAS.md` for
+detail on each):
 
 1. `sceneinformer/utils/waymo_utils.py` called `scenario.ParseFromString(bytearray(...))`,
    which modern `protobuf` rejects — patched to `bytes(...)`.
 2. `configs/scene_informer.yaml` had literal unfilled `path: PATH` placeholders (train
-   + validation) — now point at `/workspace/data_staging/occlusion`.
+   + validation) — now point at `/workspace/data_staging/occlusion_full`.
 3. `scripts/train_lightning.py`'s `Trainer(...)` call had no `strategy=` set, which
    breaks under multi-GPU DDP given SceneInformer's decoder has branches not always
    used on every batch — patched to pass `strategy="ddp_find_unused_parameters_true"`
    when >1 device is requested. Moot for now (GPU1 disabled), but left in since it's
    the correct fix regardless.
+4. `scripts/generate_dataset_summary.py` used `obj_idx` as a fancy array index without
+   casting it to `int()` first (unlike `occluding_object_id` two lines below, which
+   already did) — silent in the vast majority of files since the underlying array
+   happens to be `int64`-typed almost everywhere, but `float64` in a rare few, which
+   crashed numpy's fancy indexing. Found by scanning all 114638 stage-2 output files
+   in parallel; only 2 actually hit it.
 
 **Preprocessing is a 4-stage pipeline**, and stage 2 is genuinely slow (the repo's own
-README calls it out: "main computation is done here"):
+README calls it out: "main computation is done here" — took ~6 hours at full scale on
+this machine's 16 cores, much longer than a naive extrapolation from the first few
+shards suggested):
 
 ```bash
 # 1. Raw tfrecords -> pickled scenario lists
-docker compose run --rm sceneinformer bash -c "python scripts/collect_raw_meas.py --src_path <raw_dir> --out_path <temp_dir> --n_cores 4"
+docker compose run --rm sceneinformer bash -c "python scripts/collect_raw_meas.py --src_path <raw_dir> --out_path <temp_dir> --n_cores 16"
 # 2. Occlusion generation (slow - the repo's own README flags this as the main cost)
-docker compose run --rm sceneinformer bash -c "python scripts/generate_occlusion_dataset.py --data_dir <temp_dir> --out_dir <out_dir> --n_cores 4"
-# 3 & 4. Summary + index
-docker compose run --rm sceneinformer bash -c "python scripts/generate_dataset_summary.py --data_path <out_dir>"
-docker compose run --rm sceneinformer bash -c "python scripts/index_dataset.py --data_path <out_dir>"
+docker compose run --rm sceneinformer bash -c "python scripts/generate_occlusion_dataset.py --data_dir <temp_dir> --out_dir <out_dir> --n_cores 16"
+# 3 & 4. Summary + index (check the exit code directly - see the "pipe to tail" gotcha in BUILD_GOTCHAS.md)
+docker compose run --rm sceneinformer bash -c "python scripts/generate_dataset_summary.py --data_path <out_dir>"; echo "exit: $?"
+docker compose run --rm sceneinformer bash -c "python scripts/index_dataset.py --data_path <out_dir>"; echo "exit: $?"
 ```
 
 `<raw_dir>` needs `training/` and `validation/` subdirectories directly containing raw
@@ -74,24 +83,32 @@ ln -s /data/waymo/scenario/training_20s/<file> <raw_dir>/training/<file>   # per
 ln -s /data/waymo/scenario/validation/<file> <raw_dir>/validation/<file>
 ```
 
-**A small verified subset already exists** at `repos/SceneInformer/data_staging/`
-(2.2GB: 4 training + 3 validation raw shards → ~1170 preprocessed scenario files) —
-reuse this for a fast smoke test (`configs/scene_informer_smoketest.yaml`,
-`val_check_interval: 5` instead of the real config's `10000`, appropriate for this
-tiny sample) rather than rerunning the full pipeline every time you want to confirm
-nothing's broken:
+**A small verified subset still exists** at `/raid/scratch/sceneinformer_data_staging/`
+(`raw`/`temp`/`occlusion` — the small toy set; `raw_full`/`temp_full`/`occlusion_full`
+are the full-scale run) — reuse the toy one for a fast smoke test
+(`configs/scene_informer_smoketest.yaml`, `val_check_interval: 5`) rather than
+rerunning the full pipeline every time you want to confirm nothing's broken. Note:
+`data_staging/` for this and the other Waymo-preprocessing repos (GameFormer,
+TrajFlow) is bind-mounted from `/raid/scratch/<name>_data_staging`, **not** stored
+under `repos/<Name>/` directly — see the "repos/ lives on the OS disk" gotcha in
+`BUILD_GOTCHAS.md` for why.
+
+**Real training is running**: full-scale preprocessing produced 70541 training / 44097
+validation samples (`VectorizedDatasetHDF5`, batch_size 10 → 7055 batches/epoch — much
+smaller than a naive per-occlusion-event sample count would suggest, since the dataset
+wraps the raw positive/negative index arrays into fixed windows; had to drop
+`val_check_interval` from 10000 to 2000 once the real batch count was known, same
+class of error as the original toy-dataset mismatch, just discovered at a different
+scale). Launched as a **detached** container (`docker compose run -d --rm sceneinformer
+...`, not tracked as a foreground/backgrounded shell task) specifically so a long
+training run survives independently of any one session — confirmed running on GPU0
+(97% util, ~12GB VRAM) with GPU1 untouched:
 
 ```bash
-docker compose run --rm sceneinformer bash -c "python scripts/train_lightning.py --base configs/scene_informer_smoketest.yaml -t"
+docker compose run -d --rm sceneinformer bash -c "python scripts/train_lightning.py --base configs/scene_informer.yaml -t > /workspace/train_full.log 2>&1"
+# find it: docker ps --filter name=sceneinformer
+# watch it: docker exec <container> tail -f /workspace/train_full.log
 ```
-
-**For a real result**, rerun stages 1-4 above pointing at the full `training_20s`
-(1000 shards) and `validation` (150 shards) directories instead of a small symlinked
-subset, into a fresh output dir, then update `configs/scene_informer.yaml`'s `path:`
-to match and run against that config (not the smoketest one) — expect stage 2 to take
-considerably longer than the small-scale test did (proportionally, could be many
-hours; wasn't measured at full scale this session, so budget generously and consider
-running it as a detached background job rather than watching it).
 
 ### 2. GameFormer
 

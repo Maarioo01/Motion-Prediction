@@ -183,6 +183,25 @@ main [README](../README.md) for the "adding a repo" workflow these apply to.
   `h5py`. Only 2 of 114638 files actually hit it, which is exactly the kind of bug a
   small-scale smoke test (a handful of files) will never surface - it only showed up
   running stage 3 against the real, full-scale stage-2 output.
+- **A real training run's sample count can be very different from a naive estimate
+  from raw preprocessing output** (SceneInformer): summing the raw
+  positive/negative-sample index arrays from stage 3 suggested ~28M training
+  examples; the actual `VectorizedDatasetHDF5` the trainer builds reported only 70541
+  (7055 batches at batch_size 10) — the dataset class evidently doesn't map 1:1 onto
+  the raw per-occlusion-event index count. Don't set something like
+  `val_check_interval` from an estimate — always let the trainer report the real
+  batch count first (Lightning's own error message states it directly:
+  `` `val_check_interval` (10000) must be less than or equal to the number of the
+  training batches (7055) ``) and size the config off that.
+- **Launch anything meant to run for hours as a detached container, not a
+  foreground/backgrounded shell command.** A `docker compose run` wrapped in a shell
+  background task is still, underneath, a process this session's tooling is tracking —
+  stopping that tracked task doesn't necessarily stop the container cleanly, and
+  relying on it ties a long training run's fate to this session's own task-timeout
+  bookkeeping. Use `docker compose run -d --rm <service> bash -c "<cmd> > <logfile>
+  2>&1"` instead — the container runs independently of the launching shell, and
+  progress is checked with `docker exec <container> tail -f <logfile>` (or `docker
+  logs`) rather than reading a background task's captured output.
 - **Waymo `scenario` isn't one dataloader-agnostic format** (GameFormer): its
   `interaction_prediction/data_process.py` does `id_list[track.id]` for every id in
   `parsed_data.objects_of_interest`, keyed off `tracks_to_predict` — crashes
