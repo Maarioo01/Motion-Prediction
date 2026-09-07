@@ -103,20 +103,20 @@ Access](https://openaccess.thecvf.com/content/CVPR2023/papers/Zhou_Query-Centric
 belongs to QCNeXt, a separate follow-up paper by an overlapping author set. Don't cite
 it as QCNet's arXiv ID.)
 
-**Architecture**: Replaces the standard <mark style="background-color: #ffff00; color: black;">*agent-centric*</mark> scene encoding (which
+**Architecture**: Replaces the standard <mark>*agent-centric*</mark> scene encoding (which
 re-normalizes and re-encodes the whole scene every time the observation window
 slides, since everything is expressed relative to each agent's current pose) with a
-*query-centric* one: every scene element — each agent state at each timestep, each
-map polygon — gets its own local spacetime coordinate frame, and is encoded relative
-to that frame. This makes representations invariant to the global coordinate system,
+<mark>*query-centric*</mark> one: every scene element — each agent state at each timestep, each
+map polygon — gets its <mark>own local spacetime coordinate frame</mark>, and is encoded relative
+to that frame. <mark>This makes representations invariant to the global coordinate system</mark>,
 which means encodings can be **cached and reused** across sliding observation windows
 (streaming inference) and **shared across all target agents** in a scene (parallel
-multi-agent decoding) — the paper's efficiency claim. The encoder uses factorized
+multi-agent decoding) — the paper's efficiency claim. The encoder uses <mark>factorized
 attention (temporal, agent-map, social) with relative spatial-temporal Fourier
-positional embeddings. The decoder is two-stage: an anchor-free, DETR-like module
+positional embeddings</mark>. The decoder is two-stage: an <mark>anchor-free</mark>, DETR-like module
 generates K trajectory proposals *recurrently* (a few future waypoints per step, so
-different context can be attended to at different horizons), then an anchor-based
-refinement stage treats those as anchors, refines them, and assigns mode
+different context can be attended to at different horizons), then an <mark>anchor-based
+refinement stage treats those as anchors</mark>, refines them, and assigns mode
 probabilities — combining anchor-free flexibility with anchor-based training
 stability.
 
@@ -136,13 +136,13 @@ per-category (vehicle/pedestrian/motorcyclist/cyclist/bus) breakdowns.
 
 **License**: Apache-2.0.
 
-**Limitations** (paper's own failure-case analysis): misses turns at complex/successive
+**Limitations** <mark>(paper's own failure-case analysis): misses turns at complex/successive
 junctions and roundabouts with unusual curvature; doesn't always cover all candidate
 lanes during multi-lane crossings; fails on near-static-at-observation-start agents
 (U-turns) due to class imbalance (most training agents go straight); motorcyclist/
 cyclist predictions are markedly worse than vehicle/pedestrian (more flexible motion,
 less training data); deeper models improve accuracy but hurt latency "not amenable to
-real-time applications" without the caching trick.
+real-time applications" without the caching trick.</mark>
 
 ### RealMotion
 
@@ -154,17 +154,17 @@ own header and the repo's own tag). arXiv:
 [2410.06007](https://arxiv.org/abs/2410.06007).
 
 **Architecture**: Addresses a real mismatch between how benchmarks are evaluated
-(independent, isolated scenes) and how forecasting actually happens onboard a moving
-vehicle (continuously, with heavy overlap between consecutive observation windows).
+(independent, isolated scenes) and <mark>how forecasting actually happens onboard a moving
+vehicle (continuously, with heavy overlap between consecutive observation windows)</mark>.
 Two parts. First, a **data reorganization strategy** that retrospectively chunks each
 benchmark scene into overlapping "continuous sub-scenes," simulating real streaming
-deployment on existing (non-streaming) datasets — and is shown to generalize onto
-QCNet itself, not just RealMotion's own backbone. Second, the **RealMotion**
-architecture: an encoder-decoder with two added cross-attention streams — a *scene
+deployment on existing (non-streaming) datasets — and <mark>is shown to generalize onto
+QCNet itself, not just RealMotion's own backbone</mark>. Second, the **RealMotion**
+architecture: an encoder-decoder with two added cross-attention streams — a <mark>*scene
 context stream* that progressively accumulates and aligns historical scene features
-into the current timestep (avoiding re-deriving scene understanding from scratch every
-frame), and an *agent trajectory stream* that maintains a small memory of each agent's
-past predicted trajectories and uses them via cross-attention to enforce temporal
+into the current timestep</mark> (avoiding re-deriving scene understanding from scratch every
+frame), and an <mark>*agent trajectory stream* that maintains a small memory of each agent's
+past predicted trajectories</mark> and uses them via cross-attention to enforce temporal
 consistency between successive frame predictions, rather than treating each frame
 independently.
 
@@ -184,7 +184,7 @@ avgMinFDE/avgMinADE/actorMR (multi-agent).
 
 **License**: **none stated** — no LICENSE file in the repo, GitHub API confirms `license: null`.
 
-**Limitations** (paper's own "Limitations" section): the data-reorganization approach
+**Limitations** <mark>(paper's own "Limitations" section): the data-reorganization approach
 "requires a sufficient number of historical frames for serialization," so it's
 explicitly **not applicable to short-history benchmarks like WOMD** (only 10 frames of
 history) — this is *why* the paper has no WOMD results, not an oversight. Real-world
@@ -193,7 +193,7 @@ fully the sequential design can be exploited in practice. Fails on turning maneu
 at complex intersections (defaults to straight-ahead, attributed to data imbalance)
 and on roadside-parking scenarios (predicts continued driving instead — authors
 suggest visual cues like turn signals as a fix, which the model doesn't have access
-to).
+to).</mark>
 
 ### TrajFlow
 
@@ -202,23 +202,23 @@ Zhang, Yutong Zhang, et al. (UBC, Vector Institute, CMU, Tesla, XPeng, Nvidia, D
 an unusually large industry-academia author list). **IROS 2025**. arXiv:
 [2506.08541](https://arxiv.org/abs/2506.08541).
 
-**Architecture**: A **flow-matching** generative model, built to avoid two weaknesses
+**Architecture**: A **flow-matching** generative model, <mark>built to avoid two weaknesses
 of diffusion-based predictors: needing many independent sampling passes to get diverse
 modes, and slow iterative denoising at inference. A PointNet-style context encoder
 (MTR-style local/nearest-neighbor attention) produces context tokens from agent
-history, neighbors, and map polylines. A query-based flow-matching decoder then takes
-N_q learnable query tokens (each seeded with the current noisy trajectory, a flow-time
-embedding, and a positional embedding) and, through interleaved self-/cross-attention,
-predicts **all N_q trajectories plus confidence scores in a single forward pass** —
-the key departure from standard conditional generation, which needs one sampling run
-per output trajectory. Training combines a flow-matching regression loss (best-match
+history, neighbors, and map polylines</mark>. A <mark>query-based flow-matching decoder</mark> then takes
+<mark>N_q learnable query tokens</mark> (each seeded with the current noisy trajectory, a flow-time
+embedding, and a positional embedding) and, <mark>through interleaved self-/cross-attention,
+predicts **all N_q trajectories plus confidence scores in a single forward pass**</mark> —
+the key departure from standard conditional generation, <mark>which needs one sampling run
+per output trajectory</mark>. Training combines a flow-matching regression loss (best-match
 only), a classification loss, and a novel **Plackett-Luce ranking loss** that
 calibrates confidence scores against the *true ranking* of trajectory errors (fixing
 the common failure where the highest-confidence output isn't actually the most
-accurate one). A **self-conditioning** trick during training (the model's own
+accurate one). <mark>A **self-conditioning** trick during training (the model's own
 first-pass output feeds the noisy input for a second pass, 50% of the time) reduces
 overfitting and is the reason the paper finds **one-step ODE solving suffices** at
-inference — most flow/diffusion models need many steps.
+inference — most flow/diffusion models need many steps.</mark>
 
 **Datasets**: WOMD only (~487K train / 44K val / 44K test instances), both the
 "Standard" (marginal, single-agent) and "Interactive" (joint, 2-agent) tasks.
@@ -244,15 +244,15 @@ metrics), plus inference runtime and parameter count.
 
 **License**: MIT.
 
-**Limitations** (paper's own Discussion/Societal Impact section): two explicit failure
+**Limitations** <mark>(paper's own Discussion/Societal Impact section): two explicit failure
 modes — predicted trajectories can still spatially deviate significantly from ground
 truth, and even when a near-ground-truth trajectory is generated it doesn't always get
 the highest confidence score (the ranking loss reduces but doesn't eliminate this).
 Failures concentrate in "complex interactions, rare or seen motion patterns, or
 ambiguous intent." Trained/evaluated only on WOMD — no cross-dataset generalization
-claim is made by the authors. Training needs **8× NVIDIA A100 (80GB)** — a nontrivial
+claim is made by the authors. Training needs <mark>**8× NVIDIA A100 (80GB)**</mark> — a nontrivial
 compute footprint worth flagging for anyone trying to reproduce this on a single-GPU
-setup like this project's.
+setup like this project's.</mark>
 
 ---
 
