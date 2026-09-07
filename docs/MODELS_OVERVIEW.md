@@ -267,12 +267,12 @@ Liu, Chen Lv (AutoMan Research Lab, Nanyang Technological University). ICCV 2023
 authors — some secondary sources incorrectly list a 4th; verified against both the PDF
 and the repo README.)
 
-**Architecture**: Models multi-agent interaction with hierarchical **level-k game
+**Architecture**: Models multi-agent interaction with hierarchical <mark>**level-k game
 theory**. A 6-layer transformer encoder fuses agent history and vectorized map
-polylines into shared scene context. A hierarchical decoder then runs K sequential
+polylines into shared scene context</mark>. A hierarchical decoder then runs <mark>K sequential
 "levels": a level-0 agent predicts independently; a level-k agent conditions on the
 level-(k−1) predictions of *every other agent* plus the shared context, iteratively
-refining joint future trajectories (as Gaussian Mixture Model outputs). Training
+refining joint future trajectories (as Gaussian Mixture Model outputs)</mark>. Training
 combines an imitation (NLL) loss with an auxiliary "interaction loss" — a repulsive
 potential term (at levels k≥1) that penalizes predicted collisions with other agents'
 preceding-level futures. This is a genuinely different framing from one-shot marginal
@@ -305,13 +305,13 @@ Planning ADE/FDE @1/3/5s (open-loop); Success Rate, Progress, Position Error @3/
 **License**: **none stated** — no LICENSE file, no license section in the README,
 GitHub API confirms `license: null`.
 
-**Limitations**: the marginal+EM ensemble that gets the best mAP is explicitly called
+**Limitations**: <mark>the marginal+EM ensemble that gets the best mAP is explicitly called
 impractical for real-world use. Ablations show an optimal number of decoding levels
 (K=4 for planning, K=6 for interaction prediction) — too few or too many hurts,
 attributed to training instability/overfitting beyond the optimum. The repo itself
 withholds the marginal+EM ensemble code, closed-loop planning code, and WOMD challenge
 submission code (planning code lives in a separate `GameFormer-Planner` repo not
-included in this bench).
+included in this bench).</mark>
 
 ### SceneInformer
 
@@ -321,14 +321,14 @@ Kochenderfer (Stanford Intelligent Systems Laboratory; UC Riverside Trustworthy
 Autonomous Systems Lab). ICRA 2024, pp. 14138–14145. arXiv:
 [2309.13893](https://arxiv.org/abs/2309.13893).
 
-**Architecture**: An end-to-end transformer that jointly predicts observed-agent
-trajectories *and* infers occluded agents in a single pass — unifying two problems
+**Architecture**: <mark>An end-to-end transformer that jointly predicts observed-agent
+trajectories *and* infers occluded agents in a single pass</mark> — unifying two problems
 prior work treated separately (rasterized/grid-based occlusion inference vs.
-full-observability trajectory prediction). A scene encoder embeds agents
+full-observability trajectory prediction). <mark>A scene encoder embeds agents
 (type-specific MLPs) and map polylines (PointNet-style) into a shared 256-d token
-space via a 4-layer transformer encoder. The key novelty is an **anchor-based
+space via a 4-layer transformer encoder</mark>. The key novelty is an <mark>**anchor-based
 occlusion query**: anchors are placed at each visible agent's last observed position,
-plus additional anchors sampled uniformly within *occluded regions specifically* —
+plus additional anchors sampled uniformly within *occluded regions specifically*</mark> —
 making occlusion inference selective/queryable rather than a fixed dense grid over the
 whole scene. A 2-layer cross-attention decoder attends these anchors to the scene
 embedding and outputs, per anchor, an occupancy probability and (if occupied) 7 GMM
@@ -359,7 +359,7 @@ shown here):
 
 **License**: MIT.
 
-**Limitations** (paper's own stated future work): operates purely in BEV — real
+**Limitations** <mark>(paper's own stated future work): operates purely in BEV — real
 occlusions are 3D and this isn't modeled, explicitly acknowledged by the authors.
 Training data only includes single-agent-at-a-time occlusions; interactions *between*
 multiple simultaneous occlusions are unmodeled. Modest compute footprint by design:
@@ -367,7 +367,7 @@ multiple simultaneous occlusions are unmodeled. Modest compute footprint by desi
 project's GPU0 (RTX 3090), which is part of why this was the first repo trained
 end-to-end in this bench (see [`TRAINING_PLAN.md`](TRAINING_PLAN.md)). Authors flag a
 train/test distribution-shift risk: real-world detections are noisier than the
-offboard-labeled data used for training.
+offboard-labeled data used for training.</mark>
 
 ---
 
@@ -380,15 +380,15 @@ Prediction Model With Fast Training and Inference Speed* — Alexander Prutsch, 
 Bischof, Horst Possegger (Graz University of Technology). IROS 2024, pp. 9411–9417.
 arXiv: [2409.16154](https://arxiv.org/abs/2409.16154).
 
-**Architecture**: A deliberately minimal three-stage transformer, explicitly optimized
-for training/inference cost rather than leaderboard rank. Agent encoding uses only
+**Architecture**: A deliberately <mark>minimal three-stage transformer, explicitly optimized
+for training/inference cost rather than leaderboard rank</mark>. Agent encoding <mark>uses only
 temporal self-attention per agent (max-pooled into one token) — **no cross-attention
-to other agents at this stage**, unlike essentially every competing method. Lane
+to other agents at this stage**</mark>, unlike essentially every competing method. <mark>Lane
 encoding is a small PointNet-style encoder (following Forecast-MAE). Scene encoding
-concatenates agent+lane tokens with positional embeddings and applies self-attention.
+concatenates agent+lane tokens with positional embeddings and applies self-attention.</mark>
 Two decoder variants: **EMP-M** (a plain 2-layer MLP, cheapest) and **EMP-D** (a
 DETR-like cross-attention decoder, still avoiding cross-agent attention or mode
-self-attention). No pretraining is used anywhere in the pipeline — the authors
+self-attention). <mark>No pretraining is used anywhere in the pipeline</mark> — the authors
 identify this, together with the missing cross-agent attention, as their main
 efficiency lever and the main accuracy gap versus top-ranked methods.
 
@@ -415,13 +415,13 @@ first-class results, not an afterthought.
 
 **License**: BSD-3-Clause.
 
-**Limitations** (stated directly by the authors): "accept[s] a marginally lower
+**Limitations** <mark>(stated directly by the authors): "accept[s] a marginally lower
 accuracy" as the explicit trade-off for omitting cross-agent attention and mode
 self-attention. No pretraining is used by design, which the authors identify as the
 single biggest remaining gap versus top methods. AV1 results are explicitly labeled
 preliminary with no test-set numbers. The paper is candid about its own leaderboard
 snapshot being outdated quickly: "At the time of submission, SEPT ranks third on the
-public leaderboard, whereas the top methods have not yet been published."
+public leaderboard, whereas the top methods have not yet been published."</mark>
 
 ---
 
@@ -435,15 +435,15 @@ Cord, Alexandre Alahi (VITA lab, EPFL; Valeo.ai — plausible from lab knowledge
 independently confirmed from a fetched affiliations block). ECCV 2024. arXiv:
 [2403.15098](https://arxiv.org/abs/2403.15098).
 
-**Architecture**: **Not a single model** — a Hydra-config-driven training/evaluation
+**Architecture**: **Not a single model** — a <mark>Hydra-config-driven training/evaluation
 harness (PyTorch-Lightning + Weights & Biases) that standardizes data loading (via
 ScenarioNet), a common trajectory-prediction interface, and unified metrics across 4
 heterogeneous datasets, so different backbone architectures can be trained and
 compared under identical conditions — and combined into one large multi-dataset
-training pool. The paper's actual research contribution is empirical, not
-architectural: showing that (a) models trained on one dataset generalize poorly to
+training pool</mark>. The paper's actual research contribution is empirical, not
+architectural: showing that <mark>(a) models trained on one dataset generalize poorly to
 others, and (b) training on the combined pool (2M+ trajectories) both closes that gap
-*and* sets a new nuScenes SOTA. Bundled backbones: **AutoBot** (~1.5M params,
+*and* sets a new nuScenes SOTA</mark>. Bundled backbones: **AutoBot** (~1.5M params,
 equivariant transformer), **MTR** (~60.1M params, global intention priors + local
 refinement, won the WOMD 2022 challenge), **Wayformer** (~16.5M params, factorized
 multi-axis attention), plus **SMART**, **Forecast-MAE**, and **EMP** (this project's
@@ -473,14 +473,14 @@ genuine copyleft constraint worth checking against your institution's policy bef
 building thesis code directly on top of it (see the note in
 [`REPO_ASSESSMENT.md`](REPO_ASSESSMENT.md)).
 
-**Limitations**: cross-dataset generalization gap persists even after multi-dataset
+**Limitations**: <mark>cross-dataset generalization gap persists even after multi-dataset
 training, just smaller. Continual/incremental fine-tuning on a new dataset causes
 catastrophic forgetting of prior-dataset performance. The authors also tested
 synthetic-to-real transfer (procedurally generated pretraining data, similar in spirit
 to this list's [Pretraining-on-Synthetic](#pretraining-on-synthetic)) and found
 "minimal benefit," attributing it to a real/synthetic domain gap — a direct,
 interesting point of disagreement with Pretraining-on-Synthetic's own positive result,
-worth reading both papers side by side if pursuing this direction.
+worth reading both papers side by side if pursuing this direction.</mark>
 
 ---
 
@@ -494,15 +494,15 @@ Tomizuka, Wei Zhan (UC Berkeley / Berkeley DeepDrive). IROS 2024. arXiv:
 [2309.10121](https://arxiv.org/abs/2309.10121).
 
 **Architecture**: A pipeline-level contribution, not a new predictor architecture.
-(1) Procedural **HD-map augmentation** and **rule-based trajectory synthesis**
-generate large volumes of synthetic driving scenes cheaply (~20 compute-hours for a
+<mark>(1) Procedural **HD-map augmentation** and **rule-based trajectory synthesis**
+generate large volumes of synthetic driving scenes cheaply</mark> (~20 compute-hours for a
 dataset comparable in scene count to real datasets that take hundreds of hours of
-human driving to collect). (2) **Self-supervised pretraining** on this synthetic data
-using a masked-autoencoder (MAE)-style objective adapted to trajectory forecasting —
+human driving to collect). (2) <mark>**Self-supervised pretraining** on this synthetic data
+using a masked-autoencoder (MAE)-style objective adapted to trajectory forecasting </mark>—
 map elements and/or agent trajectories are masked, encoded, and reconstructed by a
-shallow transformer decoder. (3) The pretrained encoder is fine-tuned on real data.
-The base predictor is **DenseTNT** (encoder: VectorNet). Three masking variants are
-studied: map-only, trajectory-only, and combined.
+shallow transformer decoder. (3) <mark>The pretrained encoder is fine-tuned on real data</mark>.
+The base predictor is **DenseTNT** (encoder: VectorNet). <mark>Three masking variants are
+studied: map-only, trajectory-only, and combined.</mark>
 
 **Datasets**: Pretraining uses a custom synthetic set (370k scenes: 205k on real maps
 + 165k on augmented maps). Fine-tuning/evaluation uses **Argoverse 1.1** only (324k
@@ -525,40 +525,40 @@ minADE₆, +8.30% minFDE₆** over the no-pretraining baseline.
 
 **License**: MIT.
 
-**Limitations**: the synthetic data distribution underrepresents real-world extremes
+**Limitations**:<mark> the synthetic data distribution underrepresents real-world extremes
 — very high-velocity events and pronounced turning maneuvers like U-turns are rare in
 the generated scenes. The authors chose self-supervised (rather than supervised)
 pretraining *specifically* to be more robust to the resulting real/synthetic domain
 gap, but the gap is still acknowledged as a limitation. Evaluated only on Argoverse 1
 — no AV2/WOMD/nuScenes result is reported, so the technique's generalization isn't
 demonstrated by this paper alone (see the UniTraj cross-reference above, which found
-weaker synthetic-pretraining transfer in a different multi-dataset setting).
+weaker synthetic-pretraining transfer in a different multi-dataset setting).</mark>
 
 ---
 
 ## Full-stack
 
-### UniAD
+### <mark>UniAD</mark>
 
 **Paper**: *Planning-oriented Autonomous Driving* — Yihan Hu, Jiazhi Yang, Li Chen, et
 al. (16 authors; OpenDriveLab / Shanghai AI Laboratory, with SenseTime/Wuhan
 University collaborators). **CVPR 2023 — Best Paper Award**. arXiv:
 [2212.10156](https://arxiv.org/abs/2212.10156).
 
-**Architecture**: A full-stack, query-based, transformer-decoder end-to-end
-autonomous-driving network unifying **five tasks** in one model with a shared BEV
-feature space (ResNet backbone, BEVFormer-style BEV encoding): **TrackFormer**
+**Architecture**: <mark>A full-stack, query-based, transformer-decoder end-to-end
+autonomous-driving network unifying **five tasks** in one model</mark> with a shared BEV
+feature space (ResNet backbone, BEVFormer-style BEV encoding): <mark>**TrackFormer**
 (joint detection + multi-object tracking via track queries), **MapFormer** (online
 semantic mapping — lanes, drivable area, dividers, crossings — via panoptic
 segmentation queries), **MotionFormer** (multi-modal motion forecasting with
 scene-level interaction reasoning), **OccFormer** (dense future occupancy prediction
 with per-instance identity), and a final **Planner** that consumes the ego query plus
-the occupancy prediction to output a collision-free trajectory. The defining design
-choice — and the paper's title — is that query embeddings are passed forward as the
-interface *between* modules, rather than hard intermediate representations like
-detected boxes, avoiding the lossy hand-offs that plague modular pipelines. This
+the occupancy prediction to output a collision-free trajectory</mark>. The defining design
+choice — and the paper's title — is that <mark>query embeddings are passed forward as the
+interface *between* modules</mark>, rather than hard intermediate representations like
+detected boxes, avoiding the lossy hand-offs that plague modular pipelines. <mark>This
 "planning-oriented" framing is explicitly the paper's thesis: every upstream task is
-justified by how much it helps the final planning output, not evaluated in isolation.
+justified by how much it helps the final planning output, not evaluated in isolation.</mark>
 
 **Datasets**: nuScenes only in the original paper (full-scene, 6-camera surround,
 standard train/val splits). The v2.0 GitHub codebase adds nuPlan/NAVSIM integration
@@ -591,7 +591,7 @@ Video Panoptic Quality), Planning (**L2 displacement error and collision rate at
 
 **License**: Apache-2.0.
 
-**Limitations** (paper's own text + GitHub training docs): the authors explicitly
+**Limitations** <mark>(paper's own text + GitHub training docs): the authors explicitly
 state that coordinating this comprehensive multi-task system "is non-trivial and needs
 extensive computational power, especially [when] trained with temporal history."
 Stated failure cases concentrate on **large trucks and trailers**. Compute is the
@@ -601,7 +601,7 @@ reducible to **~30GB** (fits a 32GB card) by lowering `queue_length` to 3, at a 
 cost to tracking performance — this is why UniAD is the "odd one out" in this bench's
 own assessment (see [`REPO_ASSESSMENT.md`](REPO_ASSESSMENT.md)): it's the heaviest
 thing here and the least aligned with the "without perception" framing this project
-started from.
+started from.</mark>
 
 ---
 
