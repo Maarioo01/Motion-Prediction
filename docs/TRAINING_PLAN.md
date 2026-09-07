@@ -187,6 +187,36 @@ advice: treat a first training run as a "does the pipeline train end-to-end" tec
 check, separate from building your actual thesis contribution on top of it (hold off on
 the latter until you've read its architecture properly).
 
+### 6. MTR — environment verified, preprocessing not yet run
+
+Added after the original 12-repo shortlist (see `docs/MODELS_OVERVIEW.md` for why) —
+no checkpoint ships with the repo, so this is Track B, train-from-scratch. Environment
+is confirmed working: the image builds, and the custom CUDA extensions
+(`mtr.ops.knn`, `mtr.ops.attention`) compile and import correctly via `entrypoint.sh`'s
+first-run build step (`docker compose run --rm mtr ...`).
+
+Preprocessing needs the **plain** Waymo `training`/`validation`/`testing` split
+(`tracks_to_predict` populated) — already fully downloaded at `/raid/waymo/scenario`
+(same data GameFormer and TrajFlow use, see `DATASETS.md`). The preprocessing script,
+`mtr/datasets/waymo/data_preprocess.py`, is what TrajFlow's own preprocessing script
+was explicitly derived from — same CLI signature:
+
+```bash
+docker compose run --rm mtr bash -c "python mtr/datasets/waymo/data_preprocess.py data_staging/raw_full data_staging/processed_full"
+```
+
+`data_staging/raw_full` needs `training/`/`validation/`/`testing/` subdirectories of
+symlinks into `/data/waymo/scenario/<split>/` (container-visible path), same staging
+pattern already used for GameFormer/TrajFlow. Not yet run at the time of writing —
+hold off on starting it while another CPU-heavy preprocessing job or a live GPU
+training run is active on this machine (see the CPU-contention section below) rather
+than running three heavy jobs at once.
+
+Training itself: `tools/cfgs/waymo/mtr+100_percent_data.yaml` is the repo's own
+full-data config; reduce `batch_size` and check GPU memory before trusting a first run,
+same caveat as every other repo here on a single 24GB card vs. the paper's original
+multi-GPU setup.
+
 ## Running CPU-bound preprocessing alongside a live GPU training run
 
 They don't compete for GPU, but they do compete for CPU — and a Lightning training

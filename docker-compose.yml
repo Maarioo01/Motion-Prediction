@@ -79,6 +79,26 @@ services:
     stdin_open: true
     tty: true
 
+  mtr:
+    build: ./repos/MTR
+    image: motion-prediction/mtr:latest
+    container_name: mtr
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: ["gpu"]
+    ipc: host
+    volumes:
+      - ./repos/MTR:/workspace
+      - /raid/waymo:/data/waymo:ro
+      - /raid/scratch/mtr_data_staging:/workspace/data_staging
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+
   emp:
     build: ./repos/emp
     image: motion-prediction/emp:latest

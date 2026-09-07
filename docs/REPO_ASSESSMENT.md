@@ -1,8 +1,11 @@
 # Repo assessment: what's actually worth building on
 
-An honest read on the 10 (+2 skipped) repos in this bench — not "does it build" (all 10
+An honest read on the 11 (+2 skipped) repos in this bench — not "does it build" (all 11
 do), but "is it a good place to spend PhD time," and what's missing from the shortlist
-given where the survey (`SURVEY_itss.pdf`) says the field's actual gaps are.
+given where the survey (`SURVEY_itss.pdf`) says the field's actual gaps are. 10 of the
+11 built repos (+ both skipped ones) came from the survey's own ranked corpus; the
+11th, MTR, was added afterward and is called out separately below since it wasn't part
+of that original selection process.
 
 ## The centerpiece: UniTraj, not any single model
 
@@ -39,6 +42,28 @@ streaming two-stream design, TrajFlow's flow-matching, SceneInformer's occlusion
 inference, GameFormer's game-theoretic joint prediction). None are copyleft-licensed
 except where unstated (GameFormer has no license file at all — ask before reusing code
 from it in anything released).
+
+## The one added later: MTR
+
+**MTR** wasn't in the survey's own corpus — it was added afterward, deliberately,
+because it's hard to avoid: QCNet, RealMotion, TrajFlow, GameFormer, and emp all
+report MTR numbers as a baseline in their own papers, UniTraj bundles it as one of its
+six backbones, and **CMP's own prediction stage is literally an MTR-based module** —
+see `docs/MODELS_OVERVIEW.md`'s CMP section. Having the canonical reference
+implementation on hand, rather than only ever seeing MTR filtered through someone
+else's harness or as a number in someone else's table, is worth it specifically
+*because* of how central it turned out to be to everything else in this bench — most
+usefully as a way to sanity-check UniTraj's own `method=mtr` wrapper against the
+original, and as a clean, well-documented base to eventually read alongside CMP's
+prediction stage before extending it. It's not SOTA anymore (NeurIPS 2022, since
+surpassed on every leaderboard by QCNet/RealMotion/TrajFlow/SEPT/etc., already in this
+bench) — that's fine, it's here as infrastructure/reference, not a new comparison
+point to beat. Its newer, more directly V2X-relevant successor, **MTR++** (multi-agent
+joint decoding with symmetric scene modeling — closer in spirit to what a cooperative
+extension would need), was investigated and deliberately *not* added: the paper exists
+(TPAMI 2024) but the code was never publicly released — confirmed by checking the
+`sshaoshuai/MTR` repo's actual contents directly rather than trusting the README's
+announcement of it. Worth revisiting if that ever changes.
 
 ## The V2X-relevant two: promising but not ready yet
 

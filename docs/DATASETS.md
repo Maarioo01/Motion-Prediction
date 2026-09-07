@@ -39,7 +39,8 @@ official sources are:
 
 ## Waymo Open Motion Dataset, `scenario` format
 
-Needed by TrajFlow, SceneInformer, GameFormer — distinct from the `tf_example` format
+Needed by TrajFlow, SceneInformer, GameFormer, and MTR (added later, see
+`MODELS_OVERVIEW.md`) — distinct from the `tf_example` format
 also on `/raid` (flattened tensors; `scenario` is protobuf `Scenario` messages, a
 separate download from the same WOMD release, not a conversion of what's already
 there). At `/raid/waymo/scenario` (647GB), 6 splits confirmed complete: `training`
@@ -54,9 +55,11 @@ SceneInformer's occlusion pipeline doesn't care (it doesn't use `tracks_to_predi
 which is why `training_20s` was downloaded in the first place — but GameFormer's
 `interaction_prediction/data_process.py` and TrajFlow's
 `trajflow/datasets/waymo/data_preprocess.py` both key off `tracks_to_predict`, so both
-need the plain split for a real training run (see `BUILD_GOTCHAS.md`). **The plain
-`training` split is now downloaded** (1000 shards, 425GB) — GameFormer and TrajFlow can
-both now run full-scale preprocessing, not just the small-subset verification done
+need the plain split for a real training run (see `BUILD_GOTCHAS.md`); MTR's own
+`mtr/datasets/waymo/data_preprocess.py` (what TrajFlow's was derived from) needs it
+too. **The plain `training` split is now downloaded** (1000 shards, 425GB) —
+GameFormer and TrajFlow can both now run full-scale preprocessing, not just the
+small-subset verification done
 against `validation` earlier (see `TRAINING_PLAN.md`).
 
 No `docker-compose.yml` changes were needed — `trajflow`, `sceneinformer`, and

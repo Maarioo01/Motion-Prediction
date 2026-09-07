@@ -1,7 +1,7 @@
 # Motion Prediction
 
-A local benchmark bench for motion forecasting research: Docker environments for 10
-(of 12 investigated) motion-forecasting repos, each runnable in isolation against
+A local benchmark bench for motion forecasting research: Docker environments for 11
+(of 13 investigated) motion-forecasting repos, each runnable in isolation against
 shared, locally-mounted datasets. Built to let a single researcher quickly try a new
 idea against several published baselines without fighting Python/CUDA version hell for
 each one individually.
@@ -10,6 +10,14 @@ See [`docs/PHD_ROADMAP.md`](docs/PHD_ROADMAP.md) for how this fits into the broa
 plan, and [`docs/REPO_ASSESSMENT.md`](docs/REPO_ASSESSMENT.md) for a critical read on
 which of these repos are actually worth building on versus just useful as reference
 baselines.
+
+12 of the 13 came from the original survey's ranked shortlist (10 built, 2 investigated
+but skipped — see [`docs/DATASETS.md`](docs/DATASETS.md)). The 13th, **MTR**, was added
+later on purpose: it's the baseline nearly every other repo here reports numbers
+against, and CMP's own prediction stage is literally an MTR-based module — see
+[`docs/MODELS_OVERVIEW.md`](docs/MODELS_OVERVIEW.md) for why it earned a spot despite
+not being in the survey's own corpus, and why its newer MTR++ successor was
+deliberately *not* added instead (its code was never publicly released).
 
 ## Why one Docker image per repo
 
@@ -90,6 +98,7 @@ fresh instead, at whatever commit is current upstream (not pinned - see the note
 | [V2I_trajectory_prediction](https://github.com/xichennn/V2I_trajectory_prediction) | 11 | ⏭️ not built (skipped) | V2X-Seq (not present) | ❌ | none (all rights reserved by default) |
 | [Pretraining-on-Synthetic](https://github.com/yhli123/Pretraining_on_Synthetic_Driving_Data_for_Trajectory_Prediction) | 12 | ✅ working | `/raid/argoverse1_1` + bundled synthetic set (present) | ✅ bundled in-repo (`pretrain/`, `finetune/`) | MIT |
 | [UniAD](https://github.com/opendrivelab/uniad) | — (perception) | ✅ working | `/raid/nuscenes` (present) | ✅ Stage1 (perception) + Stage2 (planning), GitHub releases | Apache-2.0 |
+| [MTR](https://github.com/sshaoshuai/MTR) | — (not in original survey shortlist, added later) | ✅ working, environment verified | `/raid/waymo/scenario` (present, plain `training`/`validation`/`testing`); preprocessing not yet run, see [`TRAINING_PLAN.md`](docs/TRAINING_PLAN.md) | ❌ | Apache-2.0 |
 
 "env only" = the Docker environment builds and passes `verify.sh`, but the dataset it
 needs isn't on disk yet, so training/eval isn't runnable until that's fetched.
@@ -161,7 +170,7 @@ flag as shown above.
 ## Verifying everything works
 
 ```bash
-./verify.sh                 # all 10 services
+./verify.sh                 # all 11 services
 ./verify.sh qcnet unitraj   # just these two
 ```
 
@@ -172,7 +181,7 @@ much larger claim this script doesn't make.
 
 ## Adding a new repo
 
-This is the exact recipe followed for all 10 repos here — expect real iteration
+This is the exact recipe followed for all 11 repos here — expect real iteration
 (rebuild, read the error, fix, repeat), not a one-shot process. Read
 [`docs/BUILD_GOTCHAS.md`](docs/BUILD_GOTCHAS.md) first; the same handful of root causes
 account for nearly every build failure hit so far.
@@ -244,7 +253,7 @@ escalate to a reboot unilaterally if no one has physical access to the machine.
 - [`docs/TRAINING_PLAN.md`](docs/TRAINING_PLAN.md) — which repos need training from
   scratch to get any result at all (no checkpoint exists), a sane order to attempt
   them in, and realistic expectations for 2 GPUs vs. the 4-8 most papers used.
-- [`docs/REPO_ASSESSMENT.md`](docs/REPO_ASSESSMENT.md) — which of these 10 are actually
+- [`docs/REPO_ASSESSMENT.md`](docs/REPO_ASSESSMENT.md) — which of these 11 are actually
   worth building on as a research baseline versus just useful for comparison, and what's
   missing from the shortlist entirely.
 - [`docs/MODELS_OVERVIEW.md`](docs/MODELS_OVERVIEW.md) — a literature-review-style

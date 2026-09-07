@@ -20,11 +20,12 @@ declare -A CHECKS=(
   [uniad]="python -c \"import torch, torchvision, mmcv, mmdet, mmdet3d, torchmetrics; from mmdet3d.ops import ball_query; assert torch.cuda.is_available()\""
   [cmp]="python -c \"import torch, torchvision, torch_geometric, spconv, opencood; from mtr.ops.knn import knn_utils; assert torch.cuda.is_available()\""
   [unitraj]="python -c \"import torch, natten, av2, pytorch_lightning, hydra, timm, torch_geometric, scenarionet; assert torch.cuda.is_available()\""
+  [mtr]="python -c \"import torch, waymo_open_dataset; from mtr.ops.knn import knn_utils; from mtr.ops.attention import attention_utils; assert torch.cuda.is_available()\""
 )
 
 SERVICES=("$@")
 if [ "${#SERVICES[@]}" -eq 0 ]; then
-  SERVICES=(qcnet realmotion trajflow sceneinformer emp pretraining-synthetic gameformer uniad cmp unitraj)
+  SERVICES=(qcnet realmotion trajflow sceneinformer emp pretraining-synthetic gameformer uniad cmp unitraj mtr)
 fi
 
 overall=0

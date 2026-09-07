@@ -29,7 +29,7 @@ SHELL ["conda", "run", "--no-capture-output", "-n", "unitraj", "/bin/bash", "-c"
 RUN pip install --no-cache-dir "metadrive-simulator>=0.4.1.1" \
     && pip install --no-cache-dir git+https://github.com/metadriverse/scenarionet.git
 
-COPY requirements-docker.txt /tmp/requirements.txt
+COPY requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 # nvcc + a compatible host gcc for compiling natten and UniTraj's own MTR-derived CUDA

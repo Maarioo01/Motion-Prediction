@@ -1,11 +1,15 @@
 # Motion forecasting models: landscape & comparison
 
-A reference document covering all 12 repos considered for this bench (the 10 built +
+A reference document covering all 13 repos considered for this bench (the 11 built +
 the 2 investigated-but-skipped) — architecture, datasets, metrics, reported results,
 license, and known limitations for each, gathered from their papers (not just READMEs)
 and cross-checked where possible. See [`REPO_ASSESSMENT.md`](REPO_ASSESSMENT.md) for
 *this project's own* opinion on which are worth building on; this document is closer
 to a literature-review appendix — what each paper actually claims and reports.
+
+12 of the 13 came from the original survey's ranked shortlist. The 13th, **MTR**, was
+added afterward — see its own section at the bottom for why, and why its successor
+MTR++ was investigated but deliberately not added.
 
 **A note on confidence**: every number below was pulled from the paper's own PDF
 (arXiv or CVF Open Access), not a secondary summary, with venue/authors cross-checked
@@ -26,6 +30,7 @@ submission time, not current standings.
 - [Pretraining: Pretraining-on-Synthetic](#pretraining)
 - [Full-stack: UniAD](#full-stack)
 - [V2X / cooperative tier: CMP, StreamingForecasting, V2I_trajectory_prediction](#v2x--cooperative-tier)
+- [Reference baseline, added post-survey: MTR](#reference-baseline-added-post-survey)
 
 ## Quick comparison table
 
@@ -40,13 +45,10 @@ submission time, not current standings.
 | [UniTraj](#unitraj) | ECCV 2024 | Unified multi-dataset training/eval harness, 6 bundled backbones | WOMD, Argoverse 2, nuScenes (+nuPlan for cross-domain) | nuScenes leaderboard #1 (MTR-UniTraj, minADE₅=0.96) | **AGPLv3** (copyleft) |
 | [Pretraining-on-Synthetic](#pretraining-on-synthetic) | IROS 2024 | Self-supervised MAE pretraining on procedurally synthesized scenes | Argoverse 1 (+custom synthetic pretrain set) | +8.30% minFDE₆ / +3.84% minADE₆ / +5.04% MR₆ vs. no pretraining | MIT |
 | [UniAD](#uniad) | CVPR 2023 (**Best Paper**) | Full-stack, query-chained perception→prediction→planning | nuScenes | Planning collision rate **0.31%** avg, −56.3% vs. ST-P3 | Apache-2.0 |
-| [CMP](#cmp) | RA-L 2025 | Cooperative 3-stage pipeline + cross-CAV prediction aggregation | OPV2V, V2V4Real | OPV2V minADE @5s **1.86m→1.86** — 16.4% better than no-cooperation | **none stated** |
+| [CMP](#cmp) | RA-L 2025 | Cooperative 3-stage pipeline + cross-CAV prediction aggregation | OPV2V, V2V4Real | OPV2V minADE @5s **1.8578m** — 16.4% better than no-cooperation | **none stated** |
 | [StreamingForecasting](#streamingforecasting) | IROS 2023 | Plug-in occlusion reasoning + differentiable filters for streaming | Argoverse (custom "Argoverse-SF") | ~25% smaller FDE for occluded agents | MIT |
 | [V2I_trajectory_prediction](#v2i_trajectory_prediction) | arXiv preprint 2024 | Cross-view (V2I) attention fusion + post-hoc conformal calibration | V2X-Seq | Best-in-class minFDE (1.98m) & MR (0.27); 90%-target coverage achieved via CopulaCPTS | **none stated** |
-
-(CMP's OPV2V number above is written oddly on purpose to catch a copy-paste error —
-see the [CMP section](#cmp) for the correct figure: minADE drops from 2.2217m to
-1.8578m, a 16.4% reduction, at the 5s horizon.)
+| [MTR](#mtr) | NeurIPS 2022 (Oral) | Global intention localization (learnable motion-query pairs) + local movement refinement | WOMD | WOMD val (100% data) minADE **0.6046** / minFDE **1.2251** / mAP **0.4164**; won the WOMD 2022 Motion Prediction Challenge | Apache-2.0 |
 
 ## Figures
 
@@ -785,6 +787,92 @@ independence, ignoring inter-agent correlations the underlying graph structure
 actually encodes. The paper's own Figure 2 notes the top-scored predicted mode often
 isn't the one that actually contains ground truth — a mode-ranking reliability issue
 the conformal calibration works around rather than fixes at the source.
+
+---
+
+## Reference baseline, added post-survey
+
+### MTR
+
+**Paper**: *Motion Transformer with Global Intention Localization and Local Movement
+Refinement* — Shaoshuai Shi, Li Jiang, Dengxin Dai, Bernt Schiele (Max Planck
+Institute for Informatics — per general knowledge, not independently re-confirmed
+from the fetched arXiv abstract page, which doesn't list affiliations). **NeurIPS
+2022, Oral**. arXiv: [2209.13508](https://arxiv.org/abs/2209.13508). Won the WOMD
+Motion Prediction Challenge 2022 (both marginal and joint tracks).
+
+**Why this one is here despite not being in the survey's own corpus**: it's the
+baseline nearly every other repo in this bench reports numbers against — QCNet,
+RealMotion, TrajFlow, GameFormer, and emp all compare against it directly in their own
+papers (see each model's Results above). UniTraj bundles it as one of its six
+backbones. Most directly relevant to this project's own V2X direction: **CMP's own
+prediction stage is an MTR-based module** (see the [CMP section](#cmp)) — reading the
+canonical MTR implementation is close to a prerequisite for reading CMP's architecture
+properly. Adding it fills a real gap: until now, this bench only ever saw MTR
+*indirectly*, filtered through UniTraj's harness or cited as a baseline number in
+someone else's table, never as the original reference implementation on its own.
+
+**Architecture**: Frames multimodal trajectory prediction as joint optimization of
+**global intention localization** and **local movement refinement**, avoiding two
+failure modes of prior approaches: directly regressing multiple modes from one shared
+latent (converges slowly, since all modes come from the same feature) and using dense
+goal candidates (expensive, and quality depends heavily on candidate density). Instead,
+MTR uses a small, fixed set of **learnable motion query pairs** — each pair is
+responsible for one motion mode throughout both training and inference, providing
+spatial intention priors without needing dense goal sampling. A transformer context
+encoder models agent-agent and agent-map relations (deliberately kept simple per the
+paper's own framing — the query-pair mechanism, not encoder complexity, is the
+contribution). A transformer motion decoder then does two things per query pair:
+localizes a coarse "intention point" (global), then iteratively refines the full
+trajectory around it (local), outputting a Gaussian Mixture Model per mode. Two custom
+CUDA ops (`knn`, `attention`) back the interaction/attention computation — the same
+ops TrajFlow's preprocessing pipeline was explicitly derived from, and that UniTraj
+vendors internally to build its own `method=mtr` backbone.
+
+**Datasets**: Waymo Open Motion Dataset only, both the marginal (single-agent) and
+joint (interactive, 2-agent) challenge tracks. Trained at both 20% and 100% of the
+training set (the paper reports both, to show data-scaling behavior).
+
+**Metrics**: minADE, minFDE, Miss Rate, mAP (WOMD's official metrics).
+
+**Results** (from the repo's own README table, WOMD marginal challenge):
+
+| Model | Training data | minADE | minFDE | Miss Rate | mAP |
+|---|---|---|---|---|---|
+| MTR | 20% | 0.6697 | 1.3712 | 0.1668 | 0.3437 |
+| MTR | 100% | 0.6046 | 1.2251 | 0.1366 | 0.4164 |
+| MTR-e2e | 100% | 0.5160 | 1.0404 | 0.1234 | 0.3245 |
+
+On the WOMD test set (100% data): minADE=0.6050, minFDE=1.2207, MR=0.1351, mAP=0.4129;
+an ensembled variant (MTR-A) reaches mAP=0.4492. These are exactly the numbers cited
+as the "MTR" baseline throughout this document's other sections (TrajFlow's,
+GameFormer's, and emp's comparison tables all reference this same model).
+
+**License**: Apache-2.0.
+
+**Environment status in this bench**: build and CUDA-extension compilation verified
+working (`docker compose run --rm mtr ...`, both `mtr.ops.knn` and `mtr.ops.attention`
+import successfully and `torch.cuda.is_available()` passes) — see
+[`TRAINING_PLAN.md`](TRAINING_PLAN.md) for preprocessing/training status, not yet run
+at the time of writing.
+
+**On MTR++ instead**: MTR++ (*Multi-Agent Motion Prediction with Symmetric Scene
+Modeling and Guided Intention Querying*, Shi et al., arXiv
+[2306.17770](https://arxiv.org/abs/2306.17770), TPAMI 2024) extends MTR to genuine
+multi-agent **joint** prediction — symmetric context modeling and mutually-guided
+intention querying across agents, rather than MTR's per-agent marginal decoding — and
+won the WOMD Motion Prediction Challenge 2023. Architecturally, this is arguably
+*more* relevant to a V2X direction than plain MTR (joint, symmetric multi-agent
+reasoning is close in spirit to what a cooperative extension needs). It was seriously
+considered and **not added for one concrete reason**: its code was never publicly
+released. The `sshaoshuai/MTR` repository's README announces the MTR++ result as
+"News" and cites the paper, but the actual repo contents (checked directly via the
+GitHub API, not inferred from the README) contain only plain-MTR configs and modules —
+no MTR++ code path exists anywhere in `mtr/models/`, `tools/cfgs/waymo/`, or
+elsewhere. An independent web search corroborated this: "the MTR++ encoder
+implementation was not yet publicly available." If that ever changes, MTR++ would be
+a strong candidate to add on the same architectural grounds MTR was added for here,
+only more so.
 
 ---
 

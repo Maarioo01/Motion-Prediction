@@ -22,6 +22,7 @@ declare -A REPOS=(
   ["UniAD"]="https://github.com/opendrivelab/uniad.git"
   ["CMP"]="https://github.com/tasl-lab/CMP.git"
   ["UniTraj"]="https://github.com/vita-epfl/UniTraj.git"
+  ["MTR"]="https://github.com/sshaoshuai/MTR.git"
 )
 
 declare -A EXTRA_REPOS=(
