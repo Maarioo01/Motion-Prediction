@@ -103,7 +103,7 @@ Access](https://openaccess.thecvf.com/content/CVPR2023/papers/Zhou_Query-Centric
 belongs to QCNeXt, a separate follow-up paper by an overlapping author set. Don't cite
 it as QCNet's arXiv ID.)
 
-**Architecture**: Replaces the standard <mark>*agent-centric*</mark> scene encoding (which
+**Architecture**: Replaces the standard <mark style="background-color: #ffff00; color: black;">*agent-centric*</mark> scene encoding (which
 re-normalizes and re-encodes the whole scene every time the observation window
 slides, since everything is expressed relative to each agent's current pose) with a
 *query-centric* one: every scene element — each agent state at each timestep, each
