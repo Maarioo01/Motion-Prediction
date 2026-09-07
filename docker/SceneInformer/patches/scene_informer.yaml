@@ -79,7 +79,7 @@ model:
 data:
   target: sceneinformer.utils.callbacks.DataModuleFromConfig
   params:
-    batch_size: 10
+    batch_size: 6
     num_workers: 6
     wrap: false 
     train:
@@ -88,7 +88,7 @@ data:
         configs:
           dataset: WaymoMotion
           mode: training
-          path: /workspace/data_staging/occlusion
+          path: /workspace/data_staging/occlusion_full
           t_past: 11
           t_future: 40
           full_obs: true 
@@ -102,7 +102,7 @@ data:
         configs:
           dataset: WaymoMotion
           mode: validation
-          path: /workspace/data_staging/occlusion
+          path: /workspace/data_staging/occlusion_full
           t_past: 11
           t_future: 40
           full_obs: true 
@@ -116,7 +116,7 @@ lightning:
     accumulate_grad_batches: 2
     precision: 16-mixed
     gradient_clip_norm: 1.0
-    val_check_interval: 10000
+    val_check_interval: 2000
     limit_val_batches: 0.1
     devices: [0]
     accelerator: "cuda"

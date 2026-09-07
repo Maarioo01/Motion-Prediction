@@ -202,6 +202,25 @@ main [README](../README.md) for the "adding a repo" workflow these apply to.
   2>&1"` instead — the container runs independently of the launching shell, and
   progress is checked with `docker exec <container> tail -f <logfile>` (or `docker
   logs`) rather than reading a background task's captured output.
+- **A real training run can OOM well into an epoch even when early batches fit fine**
+  (SceneInformer): crashed with `torch.cuda.OutOfMemoryError` at step 2530/7055 of
+  epoch 0 (36% in, after ~14 minutes of apparently-healthy training) - not a hardware
+  issue, a genuine memory spike, most likely an unusually large scene (variable
+  agent/object counts per sample, no fixed padding across the whole dataset, so peak
+  memory isn't bounded by the average batch). The error message itself was
+  informative: `18.96 GiB reserved in total by PyTorch` vs `14.46 GiB already
+  allocated` - reserved much greater than allocated points at fragmentation, not just
+  "batch too big." Fixed two ways together: dropped `batch_size` 10→6 for more safety
+  margin against outlier-sized batches, and added `PYTORCH_CUDA_ALLOC_CONF=
+  max_split_size_mb:128` (docker-compose.yml `environment:`) to reduce fragmentation,
+  per PyTorch's own suggestion in the error text. **No progress was lost**: Lightning's
+  `ModelCheckpoint` had already saved `last.ckpt` after the first validation pass (step
+  2000, just before the crash at 2530) - resumed with `train_lightning.py -r
+  <path-to-last.ckpt>`, which correctly fast-forwards through already-seen batches
+  (visible as an artificially high it/s for the first several seconds - not a bug, it's
+  skipping the forward/backward pass while resyncing dataloader position) before
+  settling back into real training. Always check for a saved checkpoint before assuming
+  a crashed run has to restart from scratch.
 - **Waymo `scenario` isn't one dataloader-agnostic format** (GameFormer): its
   `interaction_prediction/data_process.py` does `id_list[track.id]` for every id in
   `parsed_data.objects_of_interest`, keyed off `tracks_to_predict` — crashes

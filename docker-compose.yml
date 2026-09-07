@@ -69,6 +69,8 @@ services:
               device_ids: ["0"]
               capabilities: ["gpu"]
     ipc: host
+    environment:
+      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128
     volumes:
       - ./repos/SceneInformer:/workspace
       - /raid/waymo:/data/waymo:ro
