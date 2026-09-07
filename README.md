@@ -80,9 +80,9 @@ fresh instead, at whatever commit is current upstream (not pinned - see the note
 |---|---|---|---|---|---|
 | [QCNet](https://github.com/ZikangZhou/QCNet) | 1 | ✅ working | `/raid/argoverse2` (present) | ✅ [AV2 marginal](https://drive.google.com/file/d/1OKBytt6N6BdRa9FWmS7F1-YvF0YectBv/view) | Apache-2.0 |
 | [UniTraj](https://github.com/vita-epfl/UniTraj) | 2 | ✅ working | AV2/Waymo/nuScenes (present; ScenarioNet conversion not run) | ❌ train-from-scratch by design | AGPLv3 (copyleft) |
-| [GameFormer](https://github.com/MCZhi/GameFormer) | 3 | ✅ working, preprocessing verified | `/raid/waymo/scenario` — needs the plain `training` split (not yet downloaded, only `training_20s`); preprocessing verified end-to-end against `validation` (7403 `.npz` from 3 shards) after fixing a real upstream bug, see [`TRAINING_PLAN.md`](docs/TRAINING_PLAN.md) | ❌ | none stated |
+| [GameFormer](https://github.com/MCZhi/GameFormer) | 3 | ✅ working, full-scale preprocessing running | `/raid/waymo/scenario` (all splits present incl. plain `training`, 425GB); preprocessing verified end-to-end after fixing a real upstream bug, now running at full scale, see [`TRAINING_PLAN.md`](docs/TRAINING_PLAN.md) | ❌ | none stated |
 | [RealMotion](https://github.com/fudan-zvg/RealMotion) | 4 | ✅ working | `/raid/argoverse2` (present) | ✅ [RealMotion-I](https://drive.google.com/file/d/1MY4OfoEdoqFTdfDrHqcmo1pAUgUz1Gea/view) / [RealMotion](https://drive.google.com/file/d/1qyT0HHTMtpsvGy6YFo-jlp-1b-oNGbMr/view) | none stated |
-| [TrajFlow](https://github.com/DSL-Lab/TrajFlow) | 5-6 | ✅ working, preprocessing verified | `/raid/waymo/scenario` — same missing plain `training` split gap as GameFormer; preprocessing verified against `validation`/`testing`/`*_interactive` splits, see [`TRAINING_PLAN.md`](docs/TRAINING_PLAN.md) | ❌ | MIT |
+| [TrajFlow](https://github.com/DSL-Lab/TrajFlow) | 5-6 | ✅ working, preprocessing verified | `/raid/waymo/scenario` (all splits present incl. plain `training`); preprocessing verified against `validation`/`testing`/`*_interactive` splits, full-scale run not yet started (held off to avoid CPU contention with SceneInformer's training — see [`TRAINING_PLAN.md`](docs/TRAINING_PLAN.md)) | ❌ | MIT |
 | [StreamingForecasting](https://github.com/ziqipang/StreamingForecasting) | 7 | ⏭️ not built (skipped) | Argoverse 1 (present) | ✅ VectorNet checkpoint | MIT |
 | [emp](https://github.com/a-pru/emp) | 8 | ✅ working | `/raid/argoverse2` (present) | ✅ EMP-M / EMP-D bundled | BSD-3-Clause |
 | [SceneInformer](https://github.com/sisl/SceneInformer) | 9 | ✅ working, **real training running on GPU0** | `/raid/waymo/scenario` (present); full 4-stage preprocessing pipeline completed at full scale (70541 training / 44097 validation samples) — see [`TRAINING_PLAN.md`](docs/TRAINING_PLAN.md) | ❌ (training from scratch) | MIT |
@@ -247,6 +247,12 @@ escalate to a reboot unilaterally if no one has physical access to the machine.
 - [`docs/REPO_ASSESSMENT.md`](docs/REPO_ASSESSMENT.md) — which of these 10 are actually
   worth building on as a research baseline versus just useful for comparison, and what's
   missing from the shortlist entirely.
+- [`docs/MODELS_OVERVIEW.md`](docs/MODELS_OVERVIEW.md) — a literature-review-style
+  reference covering all 12 repos (the 10 built + the 2 skipped): architecture,
+  datasets, metrics, reported results (pulled from each paper, not just the README),
+  license, and limitations, plus comparison figures (dataset-usage matrix, a
+  shared-benchmark similarity matrix, and a direct Argoverse 2 head-to-head where one
+  is actually meaningful).
 - **[Bearing & Bench](https://claude.ai/code/artifact/822a6791-32af-4d7e-8f69-ee138f1f16a6)**
   — a single-page read combining `REPO_ASSESSMENT.md` and `PHD_ROADMAP.md`, if that's
   easier to read in one sitting than two markdown files.
