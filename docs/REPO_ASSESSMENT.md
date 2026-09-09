@@ -102,8 +102,11 @@ effort should go.
 
 `StreamingForecasting` and `V2I_trajectory_prediction` were investigated but not built
 (scope decision, not a quality judgment). `V2I_trajectory_prediction` in particular is
-literally reference [12] in the survey — the only *other* corpus paper besides CMP's
-[89] that uses a cooperative dataset (V2X-Seq), and it's a light, standalone model
+literally reference [43] in the survey (Chen, Bhadani, and Head — confirmed by matching
+authors against the bibliography directly, correcting an earlier mis-citation as [12] in
+this file; [12] is a different, unrelated paper by Aydemir et al.) — the only *other*
+corpus paper besides CMP's [89] that uses a cooperative dataset (V2X-Seq), and it's a
+light, standalone model
 (conformal-prediction wrapper over a base trajectory predictor), unlike CMP's heavy
 three-module pipeline. If the V2X direction firms up, this is probably a cheaper second
 data point than it looked at first glance — `./setup.sh --all` still fetches it, the
