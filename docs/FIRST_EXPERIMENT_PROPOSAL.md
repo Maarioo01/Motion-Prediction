@@ -94,6 +94,9 @@ weighting isn't shown to be doing anything.
 
 ## Relation to recent literature (as of the Sept 2026 search)
 
+See [`RECENT_V2X_LITERATURE.md`](RECENT_V2X_LITERATURE.md) for the full search — this
+section is just the highlights relevant to this specific proposal.
+
 Situates the idea against what's actually out there right now, not what the original
 survey covered:
 - **CoPAD** (arXiv 2509.15984), **Co-MTP** (arXiv 2502.16589), **V2X-RECT** (arXiv
