@@ -112,14 +112,118 @@ Start with a proposed slide-by-slide outline before building anything, so I can 
 the structure first.
 ```
 
-## Note on the second presentation (task 4)
+## Second presentation: the first-paper pitch (task 4)
 
-You asked for a second, more elaborate presentation specifically about the first-paper
-idea (`FIRST_EXPERIMENT_PROPOSAL.md`'s CMP aggregation-module proposal). That's a
-separate deliverable from this one — worth its own project or at least its own kickoff
-prompt, since the audience and purpose are different (pitching a specific research
-contribution vs. surveying the whole benchmark). Come back to this doc once the first
-presentation's structure is settled; the same "upload knowledge, paste instructions,
-kickoff with an outline request first" pattern applies, just pointed at
-`FIRST_EXPERIMENT_PROPOSAL.md` and `RECENT_V2X_LITERATURE.md` as the primary sources
-instead.
+A separate, more elaborate deck specifically pitching the CMP aggregation-module
+proposal (`FIRST_EXPERIMENT_PROPOSAL.md`) as the first real research contribution —
+different audience/purpose from the benchmark-overview deck above (arguing for a
+specific idea, not surveying everything), so it gets its own project rather than being
+folded into the first one. Same overall pattern: create a project, upload knowledge,
+paste instructions, kick off with an outline request.
+
+### Steps on claude.ai
+
+1. **Projects → Create project**, name it **"Motion Prediction — First Paper Pitch"**.
+2. Upload the knowledge files listed below.
+3. Paste the **Project instructions** block into custom instructions.
+4. New chat, paste the **kickoff prompt** as the first message.
+
+### Files to upload as Project knowledge
+
+- `docs/FIRST_EXPERIMENT_PROPOSAL.md` — the core proposal: motivation, the two ablation
+  arms, evaluation plan, risks, scope.
+- `docs/CMP_MTR_CODE_EXCERPTS.md` — the actual code snippets behind the proposal (the
+  disabled decoder, the naive slice, MTR's core mechanism) — needed for an *accurate*
+  architecture diagram, since the other session won't have filesystem access to the
+  actual cloned repos.
+- `docs/RECENT_V2X_LITERATURE.md` — situates the idea against current work, especially
+  the April 2026 late-fusion critique paper that argues against CMP's whole design
+  philosophy.
+- `docs/MODELS_OVERVIEW.md` — CMP's and MTR's full reference entries (results tables,
+  license, limitations) for anyone wanting the fuller picture behind a given slide.
+- `docs/PHD_ROADMAP.md` — for the closing "how this fits the 2-3 year plan" framing.
+- `docs/figures/dataset_usage_matrix.png` and `model_similarity_matrix.png` — reusable
+  if a slide wants to show where CMP/MTR sit relative to the rest of the bench.
+
+### Project instructions (paste as-is)
+
+```
+You're helping build a detailed, persuasive presentation pitching a specific first
+research contribution for a motion-forecasting PhD (V2X/cooperative-perception
+direction). The audience is the student's advisor - this needs to read as a genuine
+research pitch with a real technical finding behind it, not a status update or a
+generic "here's an idea" slide.
+
+The core finding: CMP (a cooperative-prediction pipeline already in the student's
+benchmark) has a real, identifiable weakness in its Prediction Aggregation Module - a
+permutation-invariant query-based decoder is written in the code but never used,
+replaced by a naive order-dependent slice - and a literature search found nobody in the
+current cooperative-prediction literature treats per-agent confidence, communication
+latency, or occlusion as an explicit prediction-stage input feature. The proposal
+combines fixing the first (a concrete, low-risk ablation) with the second (the more
+novel contribution).
+
+Ground every technical claim in the uploaded knowledge files - the code excerpts file
+in particular has the exact mechanism this needs to accurately diagram (which module
+does what, where the bug is, what the fix changes). Do not paraphrase the architecture
+from memory or guess at what CMP/MTR do generically - use the actual snippets provided.
+
+Build this as an Artifact-based deck. This one should go deeper than a typical overview
+presentation: include a precise before/after diagram of the aggregation module (current
+naive-slice flow vs. proposed permutation-invariant + confidence-weighted flow), an
+honest slide on risks/counterarguments (especially the late-fusion critique paper - this
+needs a real answer, not a dismissal), and a clear ablation table mockup showing exactly
+what the three-row comparison (baseline / fixed-pooling / fixed-pooling+confidence) is
+meant to demonstrate. Propose a slide outline first and confirm before building the full
+deck.
+```
+
+### Kickoff prompt (first message in the new chat)
+
+```
+Build a presentation pitching my first PhD research contribution: improving CMP's
+Prediction Aggregation Module for cooperative motion prediction. Pull all technical
+content from the uploaded files, not general knowledge. Structure:
+
+1. Framing: the V2X/cooperative-prediction thesis direction, and why this specific
+   module (not a new architecture) is the right first target - low risk, builds
+   directly on infrastructure already validated, still genuinely novel.
+
+2. Background walkthrough: CMP's 3-stage pipeline (detection -> tracking -> per-CAV MTR
+   prediction -> aggregation), with the aggregation stage highlighted as where this
+   contribution lives. Include MTR's core mechanism (intention points + iterative
+   refinement) since the aggregation module wraps it directly.
+
+3. The finding: a precise diagram of MotionAggregatorTransformer's actual forward pass
+   - self-attention over concatenated per-CAV-trajectory + BEV + map embeddings, then
+   the disabled query-based decoder vs. the naive slice that's actually used. Make the
+   "written but never called" detail visually obvious - this is the concrete evidence
+   the whole pitch rests on.
+
+4. The literature gap: nobody treats per-agent confidence/latency/occlusion as an
+   explicit prediction-stage input feature (cite the specific papers checked and ruled
+   out - MSMA, CAMNet, CooperTrim, UECP, V2X-RECT - and why each doesn't count).
+
+5. The proposal: Arm A (fix the pooling - use the existing disabled decoder or a
+   permutation-invariant alternative) and Arm B (confidence-weight each CAV's
+   contribution), as two separable, ablatable changes - diagram the proposed modified
+   flow directly next to the current one from slide 3.
+
+6. Evaluation plan: the 3-row ablation table (baseline CMP / +Arm A / +Arm A+B) on
+   OPV2V and V2V4Real, same metrics as CMP's own paper - mock up what this table will
+   look like once results exist.
+
+7. Anticipated pushback: the late-fusion critique paper directly challenges CMP-style
+   fusion - give this its own slide with a real response, not a dismissal (e.g.
+   confidence-aware early fusion as a direct comparison point against their late-fusion
+   alternative).
+
+8. Honest risks: per-box confidence might not be cleanly available without rerunning
+   detection, the improvement might wash out once Arm A is isolated, scope is
+   deliberately small.
+
+9. Fit with the broader plan: where this sits in the 2-3 year roadmap if it works out,
+   and what a negative result would still be worth.
+
+Propose the slide outline first, then build once I confirm it.
+```
