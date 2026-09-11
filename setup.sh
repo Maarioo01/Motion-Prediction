@@ -69,6 +69,11 @@ apply_patches() {
       echo "[setup] applying docker/GameFormer/patches (objects_of_interest/tracks_to_predict KeyError fix - see BUILD_GOTCHAS.md)"
       cp "docker/GameFormer/patches/data_process.py" "repos/GameFormer/interaction_prediction/data_process.py"
       ;;
+    MTR)
+      echo "[setup] applying docker/MTR/patches (protobuf bytes fix + missing driveway map-feature type - see BUILD_GOTCHAS.md)"
+      cp "docker/MTR/patches/data_preprocess.py" "repos/MTR/mtr/datasets/waymo/data_preprocess.py"
+      cp "docker/MTR/patches/waymo_types.py" "repos/MTR/mtr/datasets/waymo/waymo_types.py"
+      ;;
   esac
 }
 

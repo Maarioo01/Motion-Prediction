@@ -221,6 +221,26 @@ main [README](../README.md) for the "adding a repo" workflow these apply to.
   skipping the forward/backward pass while resyncing dataloader position) before
   settling back into real training. Always check for a saved checkpoint before assuming
   a crashed run has to restart from scratch.
+- **The protobuf `bytearray` vs `bytes` bug recurs per-repo, not just for SceneInformer**:
+  MTR's own `mtr/datasets/waymo/data_preprocess.py` (the same script TrajFlow's was
+  derived from) has the identical `scenario.ParseFromString(bytearray(data.numpy()))`
+  call, and MTR's conda environment happens to pin a modern protobuf that rejects it
+  (unlike TrajFlow's environment, confirmed earlier to use an older protobuf that
+  accepts `bytearray` fine — same source code, different outcome, entirely dependent on
+  which protobuf version each repo's Dockerfile happens to pull in). Fixed the same way:
+  `bytearray(...)` → `bytes(...)`. Worth grepping for this exact pattern in any *new*
+  repo that touches Waymo `scenario` protos before assuming it's fine just because a
+  sibling repo with near-identical code didn't hit it.
+- **MTR's `decode_map_features_from_proto` doesn't handle the `driveway` map feature
+  type at all** — its `else: raise ValueError` fallback crashes on the very first
+  scenario containing one. This is upstream code from 2022; `driveway` was evidently
+  added to the Waymo dataset's map feature types in a later release than MTR's original
+  implementation targeted. TrajFlow's derived script *does* handle it (has the
+  `elif cur_data.driveway.ByteSize() > 0:` branch and a `TYPE_DRIVEWAY: 20` entry in
+  `waymo_types.py`'s `polyline_type` dict) — ported both directly from there rather than
+  inventing new values, so the numeric type ID matches across repos. A useful reminder
+  that "the sibling repo already solved this" is worth checking before debugging from
+  scratch, given how much of this code is copy-derived across repos in this bench.
 - **Waymo `scenario` isn't one dataloader-agnostic format** (GameFormer): its
   `interaction_prediction/data_process.py` does `id_list[track.id]` for every id in
   `parsed_data.objects_of_interest`, keyed off `tracks_to_predict` — crashes
