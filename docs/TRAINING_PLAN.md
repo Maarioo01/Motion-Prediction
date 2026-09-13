@@ -146,19 +146,15 @@ one harness across 6 backbones, once ScenarioNet conversion is done once, gettin
 second backbone's number is just `method=mtr` / `method=wayformer` / etc. — cheap
 incrementally even though the first setup isn't.
 
-### 4. TrajFlow
+### 4. TrajFlow — preprocessing done, full scale
 
-Preprocessing (`trajflow/datasets/waymo/data_preprocess.py`) is verified working —
-tested against a small staged subset covering all 5 expected subfolders
-(`training`/`validation`/`testing`/`validation_interactive`/`testing_interactive`).
-Unlike SceneInformer, its `ParseFromString(bytearray(...))` call doesn't hit the
-protobuf bug (this image's protobuf 3.20.3 still accepts `bytearray`, only newer
-protobuf rejects it). It handles a missing/empty split gracefully (an empty `training/`
-folder just yields 0 infos, no crash) rather than erroring, which is how the same
-**missing plain `training` split** gap as GameFormer above was confirmed here too — the
-existing `validation`/`testing`/`*_interactive` splits process correctly (right shapes,
-right file layout), but a real training run needs the still-undownloaded `training`
-split.
+Full-scale preprocessing (`trajflow/datasets/waymo/data_preprocess.py`) completed
+successfully across all 5 splits (`training`/`validation`/`testing`/
+`validation_interactive`/`testing_interactive`), exit code 0, output verified present
+under `/raid/scratch/trajflow_data_staging/processed_full/`. Unlike SceneInformer and
+MTR, its `ParseFromString(bytearray(...))` call doesn't hit the protobuf bug (this
+image's protobuf 3.20.3 still accepts `bytearray`, only newer protobuf rejects it — see
+`BUILD_GOTCHAS.md`).
 
 ```bash
 docker compose run --rm trajflow bash -c "cd trajflow/datasets/waymo && python data_preprocess.py <raw_data_path> ../../../data_staging/processed"
@@ -187,30 +183,23 @@ advice: treat a first training run as a "does the pipeline train end-to-end" tec
 check, separate from building your actual thesis contribution on top of it (hold off on
 the latter until you've read its architecture properly).
 
-### 6. MTR — environment verified, preprocessing not yet run
+### 6. MTR — preprocessing done, full scale
 
 Added after the original 12-repo shortlist (see `docs/MODELS_OVERVIEW.md` for why) —
 no checkpoint ships with the repo, so this is Track B, train-from-scratch. Environment
-is confirmed working: the image builds, and the custom CUDA extensions
-(`mtr.ops.knn`, `mtr.ops.attention`) compile and import correctly via `entrypoint.sh`'s
-first-run build step (`docker compose run --rm mtr ...`).
-
-Preprocessing needs the **plain** Waymo `training`/`validation`/`testing` split
-(`tracks_to_predict` populated) — already fully downloaded at `/raid/waymo/scenario`
-(same data GameFormer and TrajFlow use, see `DATASETS.md`). The preprocessing script,
-`mtr/datasets/waymo/data_preprocess.py`, is what TrajFlow's own preprocessing script
-was explicitly derived from — same CLI signature:
+confirmed working (custom CUDA extensions `mtr.ops.knn`/`mtr.ops.attention` compile and
+import correctly), and full-scale preprocessing completed successfully — note MTR's
+`data_preprocess.py` only processes **`training` and `validation`**, not `testing`
+(unlike TrajFlow's derived script, which added the other 3 splits) — exit code 0,
+output verified present under `/raid/scratch/mtr_data_staging/processed_full/`. Two
+real upstream bugs found and fixed along the way (see `BUILD_GOTCHAS.md`): the same
+protobuf `bytearray`/`bytes` issue as SceneInformer, and a missing `driveway` map
+feature type that crashes the original 2022 code on the first scenario containing one
+(ported the fix from TrajFlow's already-patched derived script).
 
 ```bash
 docker compose run --rm mtr bash -c "python mtr/datasets/waymo/data_preprocess.py data_staging/raw_full data_staging/processed_full"
 ```
-
-`data_staging/raw_full` needs `training/`/`validation/`/`testing/` subdirectories of
-symlinks into `/data/waymo/scenario/<split>/` (container-visible path), same staging
-pattern already used for GameFormer/TrajFlow. Not yet run at the time of writing —
-hold off on starting it while another CPU-heavy preprocessing job or a live GPU
-training run is active on this machine (see the CPU-contention section below) rather
-than running three heavy jobs at once.
 
 Training itself: `tools/cfgs/waymo/mtr+100_percent_data.yaml` is the repo's own
 full-data config; reduce `batch_size` and check GPU memory before trusting a first run,

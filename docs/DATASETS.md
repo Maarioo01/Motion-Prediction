@@ -1,10 +1,17 @@
 # Datasets
 
-All datasets these 10 repos need are on `/raid`: Argoverse 1, Argoverse 2, nuScenes,
-Waymo `tf_example`, Waymo `scenario`, OPV2V, and V2V4Real. No account-gated downloads
-remain. What's left per-repo is each one's own *preprocessing* step (raw data → the
-format that repo's dataloader actually expects), which is real work in its own right —
-see [`TRAINING_PLAN.md`](TRAINING_PLAN.md).
+All datasets these repos need are on `/raid`: Argoverse 1, Argoverse 2, nuScenes, Waymo
+`scenario`, OPV2V, and V2V4Real. No account-gated downloads remain. What's left
+per-repo is each one's own *preprocessing* step (raw data → the format that repo's
+dataloader actually expects), which is real work in its own right — see
+[`TRAINING_PLAN.md`](TRAINING_PLAN.md).
+
+**Waymo `tf_example` was deleted** (was ~1.1TB, at `/raid/waymo/tf_example`) — it was
+never used by any of the 11 built repos, all of which need `scenario` format
+specifically (see below). Deleted deliberately to relieve real disk pressure while
+GameFormer/TrajFlow/MTR's full-scale preprocessing was running. If ever needed again,
+it's re-downloadable via the same `gcloud`/`gsutil` flow as `scenario` (just a
+different bucket subpath), not something this project has any use for otherwise.
 
 ## OPV2V + V2V4Real
 
