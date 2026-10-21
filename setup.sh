@@ -48,6 +48,11 @@ clone_and_overlay() {
       cp "docker/$name/requirements-docker.txt" "repos/$name/requirements.txt"
     fi
   fi
+  # Project-added scripts (not upstream code, not fixes) - e.g. docker/QCNet/extras/qcnet_inference.py
+  if [ -d "docker/$name/extras" ]; then
+    echo "[setup] copying docker/$name/extras into repos/$name"
+    cp "docker/$name/extras/"* "repos/$name/"
+  fi
 }
 
 # Some repos have real bugs in their own source (not just environment/dependency

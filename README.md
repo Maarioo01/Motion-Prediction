@@ -94,7 +94,7 @@ fresh instead, at whatever commit is current upstream (not pinned - see the note
 
 | Repo | Rank in survey | Status | Dataset | Checkpoints | License |
 |---|---|---|---|---|---|
-| [QCNet](https://github.com/ZikangZhou/QCNet) | 1 | ✅ working | `/raid/argoverse2` (present) | ✅ [AV2 marginal](https://drive.google.com/file/d/1OKBytt6N6BdRa9FWmS7F1-YvF0YectBv/view) | Apache-2.0 |
+| [QCNet](https://github.com/ZikangZhou/QCNet) | 1 | ✅ working, **trained from scratch (64 epochs) + official checkpoint reproduces the paper exactly** - see [`TRAINING_PLAN.md`](docs/TRAINING_PLAN.md) | `/raid/argoverse2` (present); preprocessed caches in `/raid/scratch/qcnet_data_staging` | ✅ [AV2 marginal](https://drive.google.com/file/d/1OKBytt6N6BdRa9FWmS7F1-YvF0YectBv/view) | Apache-2.0 |
 | [UniTraj](https://github.com/vita-epfl/UniTraj) | 2 | ✅ working | AV2/Waymo/nuScenes (present; ScenarioNet conversion not run) | ❌ train-from-scratch by design | AGPLv3 (copyleft) |
 | [GameFormer](https://github.com/MCZhi/GameFormer) | 3 | ✅ working, full-scale preprocessing running | `/raid/waymo/scenario` (all splits present incl. plain `training`, 425GB); preprocessing verified end-to-end after fixing a real upstream bug, now running at full scale, see [`TRAINING_PLAN.md`](docs/TRAINING_PLAN.md) | ❌ | none stated |
 | [RealMotion](https://github.com/fudan-zvg/RealMotion) | 4 | ✅ working | `/raid/argoverse2` (present) | ✅ [RealMotion-I](https://drive.google.com/file/d/1MY4OfoEdoqFTdfDrHqcmo1pAUgUz1Gea/view) / [RealMotion](https://drive.google.com/file/d/1qyT0HHTMtpsvGy6YFo-jlp-1b-oNGbMr/view) | none stated |
@@ -135,13 +135,10 @@ copied from what's actually documented upstream, verified during this project's
 build/test process:
 
 ```bash
-# QCNet
-docker compose run --rm qcnet bash -c "python train_qcnet.py --root /data/argoverse2 \
-  --train_batch_size 4 --val_batch_size 4 --test_batch_size 4 --devices 1 \
-  --dataset argoverse_v2 --num_historical_steps 50 --num_future_steps 60 \
-  --num_recurrent_steps 3 --pl2pl_radius 150 --time_span 10 --pl2a_radius 50 \
-  --a2a_radius 50 --num_t2m_steps 30 --pl2m_radius 150 --a2m_radius 150"
-# Inference from a checkpoint: python val.py --model QCNet --root /data/argoverse2 --ckpt_path <path>
+# QCNet - the upstream README's commands do NOT work as-is here (read-only data mount, our
+# dataset layout, and batch 4 runs out of memory on one 24GB card). Verified train + inference
+# commands are in docs/TRAINING_PLAN.md ("QCNet: trained from scratch + validated").
+# Inference/eval + plots: qcnet_inference.py (from docker/QCNet/extras/), results in outputs/qcnet_inference/
 
 # RealMotion (Hydra-configured; edit repos/RealMotion/conf/ for the dataset path first)
 docker compose run --rm realmotion bash -c "python train.py"

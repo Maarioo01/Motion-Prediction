@@ -14,6 +14,7 @@ services:
     volumes:
       - ./repos/QCNet:/workspace
       - /raid/argoverse2/motion_forecasting:/data/argoverse2:ro
+      - /raid/scratch/qcnet_data_staging:/workspace/data_staging
     working_dir: /workspace
     stdin_open: true
     tty: true

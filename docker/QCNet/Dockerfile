@@ -5,7 +5,7 @@ FROM continuumio/miniconda3:24.9.2-0
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential git wget \
+    build-essential git wget libgl1 \
     && rm -rf /var/lib/apt/lists/*
 
 RUN conda create -y -n qcnet python=3.8.16 && conda clean -afy
@@ -28,7 +28,7 @@ RUN pip install --no-cache-dir \
     numpy==1.24.3 \
     pandas \
     tqdm \
-    av2
+    av2==0.2.1
 
 RUN echo "conda activate qcnet" >> /root/.bashrc
 ENV PATH=/opt/conda/envs/qcnet/bin:$PATH

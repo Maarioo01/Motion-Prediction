@@ -262,3 +262,42 @@ main [README](../README.md) for the "adding a repo" workflow these apply to.
   populated. See [`TRAINING_PLAN.md`](TRAINING_PLAN.md) and
   [`DATASETS.md`](DATASETS.md) for what this means for the still-missing plain
   `training` split.
+- **QCNet: unpinned `av2` breaks on Python 3.8, and `verify.sh` couldn't see it.** The
+  Dockerfile installed plain `av2`, which resolved to 0.3.1 - that release uses
+  Python-3.9-only type-subscript syntax in `av2/utils/typing.py`
+  (`TypeError: Type subscription requires python >= 3.9`), while QCNet's env is pinned to
+  Python 3.8.16. `verify.sh`'s `import av2` passes anyway, because only deeper
+  submodules trip it - the crash only appears on the first real training run. Pinned
+  `av2==0.2.1`.
+- **QCNet: `av2.map.map_api` needs `libGL.so.1`** (it imports `opencv-python`), which the
+  minimal `miniconda3` base image doesn't have. Worse, QCNet's
+  `datasets/argoverse_v2_dataset.py` wraps the av2 imports in `try/except ImportError`
+  and silently substitutes `object` for each name, so the real error surfaces much later
+  and makes no sense: `TypeError: object() takes no arguments` from `read_json_file(...)`.
+  Fix: `libgl1` in the Dockerfile's apt list. Lesson: when an upstream repo swallows an
+  `ImportError`, re-run the exact import block by hand before debugging anything else.
+- **QCNet's dataset class assumes its own directory layout and a writable root.** By
+  default it looks for `<root>/<split>/raw/<scenario_id>/` and
+  `<root>/<split>/processed/*.pkl`, and if `raw/` isn't there it tries to download the
+  split tarball from S3 *into `<root>`*. Our AV2 copy is `<root>/<split>/<scenario_id>/`
+  (already the per-scenario layout it wants, just without the `raw/` level), mounted
+  read-only, so it crashed trying to write `train.tar`. Fix: pass
+  `--{train,val,test}_raw_dir /data/argoverse2/<split>` and point
+  `--{train,val,test}_processed_dir` at `/workspace/data_staging/<split>_processed`, which
+  `docker-compose.yml` bind-mounts from `/raid/scratch/qcnet_data_staging` (~48GB of
+  `.pkl` caches for all three splits - keep it off the OS disk). Upstream `val.py` /
+  `test.py` don't take these flags at all, hence `qcnet_inference.py` (see
+  `docker/QCNet/extras/`).
+- **QCNet at the paper's per-GPU batch size (4) runs out of memory on a 24GB card**, but only
+  after ~7k steps, once a large enough scene (many agents, big map) shows up - the
+  paper's "~160GB across 8x 3090" averages ~20GB per device, which leaves almost no
+  headroom. `--train_batch_size 2` was stable for all 64 epochs (~21-23GB peak, ~5.5h
+  per epoch on GPU0). `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` is **not** an
+  option here: torch 2.0.1 rejects it at CUDA init (`Unrecognized CachingAllocator
+  option`). Note the README's own caveat: matching the paper's numbers assumes a *total*
+  batch size of 32 - see [`TRAINING_PLAN.md`](TRAINING_PLAN.md) for what training at 2
+  actually cost.
+- **tqdm progress bars in a redirected log file grow without bound** - every update is a
+  `\r`-separated rewrite that a file keeps in full. QCNet's 64-epoch log reached several
+  GB. Read such logs with `tr '\r' '\n' < log | tail`, and for long runs consider
+  `--enable_progress_bar`-style flags or periodic truncation.
