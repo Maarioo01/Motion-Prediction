@@ -7,8 +7,9 @@ plan documents below before doing any work.
 
 - **Mario** is a PhD student. His thesis is **100 % V2X motion prediction** (vehicle +
   infrastructure / vehicle-to-vehicle cooperative trajectory forecasting).
-  **Talk to him in Spanish**, without heavy jargon. Write code, commits and repo docs in English,
-  except the Spanish plan documents in `docs/v2x_plan/`.
+  **Answer in English** by default, without heavy jargon; switch to Spanish only when Mario
+  writes in Spanish. Write code, commits and repo docs in English, except the Spanish plan
+  documents in `docs/v2x_plan/`.
 - This repo is a **Docker benchmark bench**: one Docker image per upstream model repo,
   shared datasets on `/raid`, GPU0 only. Upstream code lives in `repos/` (gitignored,
   recreated by `setup.sh`); this repo tracks only `docker/<Name>/`, `docker-compose.yml`,
