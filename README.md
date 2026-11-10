@@ -6,7 +6,15 @@ shared, locally-mounted datasets. Built to let a single researcher quickly try a
 idea against several published baselines without fighting Python/CUDA version hell for
 each one individually.
 
-See [`docs/PHD_ROADMAP.md`](docs/PHD_ROADMAP.md) for how this fits into the broader PhD
+> **Current plan (Nov 2026): V2X only, real datasets only.** Start with
+> [`docs/v2x_plan/PHASE0_CHECKLIST.md`](docs/v2x_plan/PHASE0_CHECKLIST.md), the report
+> [`docs/v2x_plan/INFORME_PLAN_DE_RUTA_V2X.md`](docs/v2x_plan/INFORME_PLAN_DE_RUTA_V2X.md)
+> ([PDF with colour marks](docs/v2x_plan/INFORME_PLAN_DE_RUTA_V2X.pdf)) and the first-paper
+> summary [`docs/v2x_plan/PAPER1_V2X_BENCHMARK.md`](docs/v2x_plan/PAPER1_V2X_BENCHMARK.md).
+> Claude Code sessions: see [`CLAUDE.md`](CLAUDE.md). The bench's model list below is being
+> trimmed to the V2X baselines (see CLAUDE.md, "Methods").
+
+See [`docs/PHD_ROADMAP.md`](docs/PHD_ROADMAP.md) (superseded) for the earlier PhD
 plan, and [`docs/REPO_ASSESSMENT.md`](docs/REPO_ASSESSMENT.md) for a critical read on
 which of these repos are actually worth building on versus just useful as reference
 baselines.

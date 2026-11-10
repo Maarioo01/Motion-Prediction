@@ -1,5 +1,12 @@
 # PhD roadmap — ideas, not a plan
 
+> **Superseded on 2026-11-09.** The current plan is
+> [`v2x_plan/INFORME_PLAN_DE_RUTA_V2X.md`](v2x_plan/INFORME_PLAN_DE_RUTA_V2X.md) (section 12)
+> and the first-paper summary [`v2x_plan/PAPER1_V2X_BENCHMARK.md`](v2x_plan/PAPER1_V2X_BENCHMARK.md).
+> Two decisions there override this file: the thesis is 100 % V2X motion prediction, and
+> **only real datasets** are used (OPV2V and other simulated data are dropped, so the
+> "start in simulation" idea below no longer applies). Kept for history.
+
 Written at the end of year 1, with the survey and this benchmark bench as the only two
 concrete assets so far. This is deliberately loose — a set of directions to workshop
 with your advisor, not a committed schedule. Revisit and rewrite this file as things
@@ -13,11 +20,6 @@ firm up; it should look wrong in six months if it's doing its job.
   cooperative pipeline) plus a full perception+planning stack for reference.
 - **Stated end goal**: get to V2X motion forecasting by the end of the thesis, with
   real data, simulation, or both.
-- **Real asset your lab already has**: `ZARAGOZA-V2X` on `/raid` — raw ROS2 bag
-  recordings from a real V2X field experiment (`experimento_UC3_1..4`). Currently
-  unprocessed (no object detection/tracking run on it yet, so no trajectories
-  extracted). This is worth knowing about now even if it's not touched until year 2+ —
-  it's the one dataset in reach that's neither a public benchmark nor purely simulated.
 
 ## Year 1 (remainder)
 
@@ -82,21 +84,10 @@ Ideas, ordered roughly cheapest-to-hardest, not a sequence you need to follow in
 
 ## Year 2: real data, if it's time
 
-- **ZARAGOZA-V2X is not motion-forecasting-ready as-is.** ROS bags give you raw sensor
-  streams, not trajectories — turning it into something usable means running detection
-  + tracking first (this is exactly what UniAD or a lighter detector+AB3Dmot pipeline,
-  already in CMP, would do). This is real, non-trivial engineering work, so budget for
-  it deliberately rather than assuming it's "just a dataset" the way OPV2V is.
-  Realistically this is the point where the "without perception" framing from year 1
-  needs revisiting — not by become a perception thesis, but by accepting that *someone*
-  has to turn raw multi-agent sensor data into trajectories before any forecasting
-  model sees it, and deciding consciously whether that's your own work, a
-  collaborator's, or an existing off-the-shelf tracker you treat as a fixed component.
 - **Validate the simulation-derived findings against real data.** If the year-1/2
   simulated-V2X module showed a benefit on OPV2V, the natural year-2 question is
-  whether it holds on V2V4Real (real-world V2V) and, eventually, on processed
-  ZARAGOZA-V2X data — a sim-to-real generalization angle that's a paper in itself even
-  independent of the core method.
+  whether it holds on V2V4Real (real-world V2V) — a sim-to-real generalization angle
+  that's a paper in itself even independent of the core method.
 - **Scale the fusion module across more of the bench's backbones** once the core idea
   is validated on one — this is where UniTraj's multi-backbone harness pays for itself:
   the same cooperative-context module tested against AutoBot, MTR, and Wayformer
