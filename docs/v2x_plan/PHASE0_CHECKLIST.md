@@ -15,21 +15,31 @@ source of *why*; this file is the source of *what is done*.
       `AIR-THU/DAIR-V2X-Seq` says free download is for mainland China; look for the
       international application form / OpenDataLab / other official mirror). Download to
       `/raid/datasets/V2X-Seq-TFD`.
-- [ ] **A2. V2X-Traj** (~10k scenarios, 2 vehicles + infrastructure, 28 intersections).
+      *2026-11-10: access route found — public Drive folder linked from `AIR-THU/DAIR-V2X`
+      and `AIR-THU/V2X-Graph` (train + val, ~31 GB split zip, no form). Download blocked
+      for now by Drive's per-file quota; see `docs/DATASETS.md`.*
+- [x] **A2. V2X-Traj** (~10k scenarios, 2 vehicles + infrastructure, 28 intersections).
       Linked from `AIR-THU/V2X-Graph` (Google Drive). Download to `/raid/datasets/V2X-Traj`.
+      *2026-11-10: done — `/raid/datasets/V2X-Traj/v2x-traj`, 6062 train / 2020 val
+      scenarios (test not released), zip passes `unzip -t`.*
 - [ ] **A3. Real-data-only cleanup**: OPV2V and any simulated/synthetic data removed from
       disk (see CLAUDE.md "Datasets" for the keep/delete list). `docs/DATASETS.md` updated.
 
 ## B. Methods in the bench
 
-- [ ] **B1. Archive** the configs not needed for the V2X plan into `docker/_archive/`
+- [x] **B1. Archive** the configs not needed for the V2X plan into `docker/_archive/`
       (out of `setup.sh` and `docker-compose.yml`). See CLAUDE.md "Methods".
+      *2026-11-10: 9 configs moved with `git mv`; restore notes in
+      `docker/_archive/README.md`. Active: qcnet, cmp (both pass `verify.sh`). CMP's OPV2V
+      mount removed. Images, `repos/` clones and staging data untouched (A3).*
 - [ ] **B2. Add V2X-Graph** (`AIR-THU/V2X-Graph`, code + checkpoint) as a Docker service.
 - [ ] **B3. Add V2INet** (`xichennn/V2I_trajectory_prediction`, already in `setup.sh --all`).
 - [ ] **B4. Add Co-MTP** (`xiaomiaozhang/Co-MTP`, code only; note its 3 s → 5 s @ 5 Hz
       protocol and its use of the AV's ground-truth future as "plan" — privileged info).
 - [ ] **B5. HiVT** baseline (`ZikangZhou/HiVT`) — check whether V2X-Seq's own baseline code
       already provides it before adding a separate service.
+      *2026-11-10: it does — `AIR-THU/DAIR-V2X-Seq` `projects/HiVT_plugin` (PP-VIC eval
+      scripts); no checkpoint in the repo.*
 
 ## C. Reproduction (the gate)
 

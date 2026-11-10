@@ -5,28 +5,20 @@
 # this repo, only fetched fresh from the original authors.
 #
 # Usage:
-#   ./setup.sh          # clone + overlay the 10 working repos
-#   ./setup.sh --all    # also clone the 2 repos that were investigated but not built
-#                        # (StreamingForecasting, V2I_trajectory_prediction - see README)
+#   ./setup.sh          # clone + overlay the active repos (QCNet, CMP)
+#   ./setup.sh --all    # also clone repos that are planned but not built yet
+#                        # (V2I_trajectory_prediction - checklist B3)
+#
+# Archived configs (not cloned here) live in docker/_archive/ - see its README.md.
 set -e
 cd "$(dirname "$0")"
 
 declare -A REPOS=(
   ["QCNet"]="https://github.com/ZikangZhou/QCNet.git"
-  ["RealMotion"]="https://github.com/fudan-zvg/RealMotion.git"
-  ["TrajFlow"]="https://github.com/DSL-Lab/TrajFlow.git"
-  ["SceneInformer"]="https://github.com/sisl/SceneInformer.git"
-  ["emp"]="https://github.com/a-pru/emp.git"
-  ["pretraining-synthetic"]="https://github.com/yhli123/Pretraining_on_Synthetic_Driving_Data_for_Trajectory_Prediction.git"
-  ["GameFormer"]="https://github.com/MCZhi/GameFormer.git"
-  ["UniAD"]="https://github.com/opendrivelab/uniad.git"
   ["CMP"]="https://github.com/tasl-lab/CMP.git"
-  ["UniTraj"]="https://github.com/vita-epfl/UniTraj.git"
-  ["MTR"]="https://github.com/sshaoshuai/MTR.git"
 )
 
 declare -A EXTRA_REPOS=(
-  ["StreamingForecasting"]="https://github.com/ziqipang/StreamingForecasting.git"
   ["V2I_trajectory_prediction"]="https://github.com/xichennn/V2I_trajectory_prediction.git"
 )
 
@@ -62,22 +54,12 @@ apply_patches() {
   local name="$1"
   [ -d "docker/$name/patches" ] || return 0
   case "$name" in
-    SceneInformer)
-      echo "[setup] applying docker/SceneInformer/patches (protobuf bytes fix, DDP strategy fix, filled-in config paths - see BUILD_GOTCHAS.md)"
-      cp "docker/SceneInformer/patches/waymo_utils.py" "repos/SceneInformer/sceneinformer/utils/waymo_utils.py"
-      cp "docker/SceneInformer/patches/train_lightning.py" "repos/SceneInformer/scripts/train_lightning.py"
-      cp "docker/SceneInformer/patches/scene_informer.yaml" "repos/SceneInformer/configs/scene_informer.yaml"
-      cp "docker/SceneInformer/patches/scene_informer_smoketest.yaml" "repos/SceneInformer/configs/scene_informer_smoketest.yaml"
-      cp "docker/SceneInformer/patches/generate_dataset_summary.py" "repos/SceneInformer/scripts/generate_dataset_summary.py"
-      ;;
-    GameFormer)
-      echo "[setup] applying docker/GameFormer/patches (objects_of_interest/tracks_to_predict KeyError fix - see BUILD_GOTCHAS.md)"
-      cp "docker/GameFormer/patches/data_process.py" "repos/GameFormer/interaction_prediction/data_process.py"
-      ;;
-    MTR)
-      echo "[setup] applying docker/MTR/patches (protobuf bytes fix + missing driveway map-feature type - see BUILD_GOTCHAS.md)"
-      cp "docker/MTR/patches/data_preprocess.py" "repos/MTR/mtr/datasets/waymo/data_preprocess.py"
-      cp "docker/MTR/patches/waymo_types.py" "repos/MTR/mtr/datasets/waymo/waymo_types.py"
+    # <Name>)
+    #   echo "[setup] applying docker/<Name>/patches (... - see BUILD_GOTCHAS.md)"
+    #   cp "docker/<Name>/patches/<file>" "repos/<Name>/<path>/<file>"
+    #   ;;
+    *)
+      echo "[setup] WARNING: docker/$name/patches exists but setup.sh has no rule for it"
       ;;
   esac
 }
