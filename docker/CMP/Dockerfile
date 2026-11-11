@@ -2,8 +2,8 @@
 # https://github.com/tasl-lab/CMP
 # A full V2X cooperative pipeline, not a single model: wires together OpenCOOD (LiDAR
 # cooperative detection), AB3Dmot (multi-object tracking) and MTR (trajectory
-# prediction, same lineage as TrajFlow/UniTraj's CUDA ops). Needs OPV2V + V2V4Real
-# datasets, neither present on /raid - this Dockerfile only prepares the environment.
+# prediction, same lineage as TrajFlow/UniTraj's CUDA ops). Used on V2V4Real only
+# (real data; OPV2V is simulated and out of scope) - this Dockerfile only prepares the environment.
 FROM continuumio/miniconda3:24.9.2-0
 
 ENV DEBIAN_FRONTEND=noninteractive

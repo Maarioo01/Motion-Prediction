@@ -15,7 +15,7 @@ that doesn't have one to check against.
 
 | Repo | Checkpoint | What to run |
 |---|---|---|
-| QCNet | [AV2 marginal](https://drive.google.com/file/d/1OKBytt6N6BdRa9FWmS7F1-YvF0YectBv/view) | `python val.py --model QCNet --root /data/argoverse2 --ckpt_path <path>` |
+| QCNet | [AV2 marginal](https://drive.google.com/file/d/1OKBytt6N6BdRa9FWmS7F1-YvF0YectBv/view) (already at `repos/QCNet/QCNet_AV2.ckpt`) | **✅ done, reproduces the paper exactly** - see "QCNet: trained from scratch + validated" below. Use `qcnet_inference.py`, not upstream `val.py` (which can't find our data layout) |
 | RealMotion | [RealMotion-I](https://drive.google.com/file/d/1MY4OfoEdoqFTdfDrHqcmo1pAUgUz1Gea/view) / [RealMotion](https://drive.google.com/file/d/1qyT0HHTMtpsvGy6YFo-jlp-1b-oNGbMr/view) | `python eval.py checkpoint=<path>` |
 | emp | bundled (EMP-M / EMP-D) | `python eval.py data_root=/data/argoverse2 batch_size=32 'checkpoint="<path>"'` |
 | Pretraining-on-Synthetic | bundled in `pretrain/`, `finetune/` | see the repo's own `bash/` scripts — didn't verify the exact eval command this session |
@@ -25,6 +25,59 @@ that doesn't have one to check against.
 Download each checkpoint yourself (Google Drive links, manual — Drive throttles
 scripted bulk downloads the same way Box did for OPV2V/V2V4Real), then either bind-mount
 it into the container or `docker cp` it in.
+
+### QCNet: trained from scratch + validated (Sep–Oct 2026)
+
+The first repo taken all the way through: preprocessing → full training → evaluation
+against the authors' checkpoint. Full results, plots and per-scenario metrics are in
+`outputs/qcnet_inference/` (gitignored; see its `README.md`).
+
+| AV2 val (24,988 scenarios) | minADE₆ | minFDE₆ | MR₆ | minFDE₁ | brier-minFDE₆ |
+|---|---|---|---|---|---|
+| Paper | 0.72 | 1.25 | 0.16 | 4.32 | 1.87 |
+| Official checkpoint, run here | 0.720 | 1.253 | 0.157 | 4.316 | 1.874 |
+| Trained here (epoch 63) | 1.006 | 1.986 | 0.309 | 6.184 | 2.588 |
+
+- **The environment is proven**: the official checkpoint matches the paper on every
+  metric, so the image, the preprocessed `.pkl` caches and the evaluation are correct.
+- **Our own training run did not reach paper quality**: minFDE₆ 1.99 vs 1.25. Root cause
+  is almost certainly the recipe, not the code. The README requires a *total* batch size of 32;
+  we used **2** (batch 4 runs out of memory on one 24GB card, see `BUILD_GOTCHAS.md`) with the
+  paper's unchanged LR 5e-4. The gap is uniform across all six cities, consistent with that.
+  The validation curve was still improving slowly until the cosine LR schedule
+  hit zero at epoch 64.
+- **Cost**: 64 epochs × ~5.5h ≈ 15 days on GPU0, plus ~2h of one-time preprocessing
+  (~48GB of `.pkl` caches in `/raid/scratch/qcnet_data_staging`, reused by any later run).
+- **If a closer reproduction is ever needed**, options in rough order of cost: gradient
+  accumulation (`accumulate_grad_batches=16` on the Trainer → effective batch 32, same
+  wall-clock), or scaling LR down with the batch (linear rule: 5e-4 × 2/32 ≈ 3e-5), or
+  fine-tuning from the official checkpoint instead of training from scratch. Any of these
+  needs a small patch to `train_qcnet.py`; none was tried.
+- Resuming is possible from `repos/QCNet/lightning_logs/version_1/checkpoints/` (epochs
+  59-63 kept), but the run already completed its full LR schedule, so "resuming" would just
+  mean extra epochs at LR ≈ 0.
+
+Verified commands (all from the repo root; the data paths matter, see `BUILD_GOTCHAS.md`):
+
+```bash
+# Train (one-time preprocessing of all 3 splits happens automatically on first launch)
+docker compose run -d --rm qcnet bash -c "exec > /workspace/train_full.log 2>&1; \
+  python train_qcnet.py --root /data/argoverse2 \
+  --train_raw_dir /data/argoverse2/train --val_raw_dir /data/argoverse2/val --test_raw_dir /data/argoverse2/test \
+  --train_processed_dir /workspace/data_staging/train_processed \
+  --val_processed_dir /workspace/data_staging/val_processed \
+  --test_processed_dir /workspace/data_staging/test_processed \
+  --train_batch_size 2 --val_batch_size 2 --test_batch_size 2 --devices 1 \
+  --dataset argoverse_v2 --num_historical_steps 50 --num_future_steps 60 --num_recurrent_steps 3 \
+  --pl2pl_radius 150 --time_span 10 --pl2a_radius 50 --a2a_radius 50 --num_t2m_steps 30 \
+  --pl2m_radius 150 --a2m_radius 150"
+
+# Evaluate + plot (any number of --ckpt name=path; ~9 min each on GPU0)
+docker compose run --rm -v $PWD/outputs/qcnet_inference:/outputs qcnet bash -c \
+  "python qcnet_inference.py --ckpt ours=lightning_logs/version_1/checkpoints/epoch=63-step=6397056.ckpt \
+   --ckpt official=QCNet_AV2.ckpt --raw_dir /data/argoverse2/val \
+   --processed_dir /workspace/data_staging/val_processed --out_dir /outputs"
+```
 
 ## Track B — train from scratch (the real work)
 

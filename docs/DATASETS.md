@@ -13,6 +13,30 @@ GameFormer/TrajFlow/MTR's full-scale preprocessing was running. If ever needed a
 it's re-downloadable via the same `gcloud`/`gsutil` flow as `scenario` (just a
 different bucket subpath), not something this project has any use for otherwise.
 
+## V2X-Seq-TFD and V2X-Traj (Phase 0, A1/A2)
+
+Both come from public Google Drive links in the official AIR-THU repos; no login, form or
+click-through. The "free download only in mainland China" note in `AIR-THU/DAIR-V2X-Seq`
+is outdated: the full train + val set is in the public Drive folder linked from
+`AIR-THU/DAIR-V2X` ("Public-V2X-Datasets") and from the `AIR-THU/V2X-Graph` README. The
+test splits are not released, so published numbers (V2X-Graph etc.) are on val. The
+dataset terms of use are on <https://thudair.baai.ac.cn/index> (the code repos are Apache-2.0).
+
+- **V2X-Traj** — `/raid/datasets/V2X-Traj/v2x-traj` (11 GB unzipped; zip kept in
+  `_zips/`). Drive file `1-5cPcZfGx1L58aiNiHUGoJOkoTSojFtF` (`v2x-traj.zip`, 2.6 GB).
+  `ego-`, `vehicle-`, `infrastructure-trajectories/{train,val}` with 6062 train / 2020 val
+  scenarios each, plus `traffic-light/`, `maps/`, `map_files/` (Argoverse-1-style
+  Yizhuang map tables). Downloaded 2026-11-10.
+- **V2X-Seq-TFD** — target `/raid/datasets/V2X-Seq-TFD`. Drive folder
+  `1yDnlrPCKImpVfI1OPBYyzLFWkhZP5v-7`, `Full Dataset (train & val)/`: split zip
+  `V2X-Seq-TFD.z01`–`.z06` (5.0 GB each) + `V2X-Seq-TFD.zip` (1.3 GB), ~31 GB in total.
+  Join with `zip -s 0 V2X-Seq-TFD.zip --out full.zip` (or `7z x V2X-Seq-TFD.zip`) before
+  extracting. Expected layout: `cooperative-vehicle-infrastructure/{cooperative,vehicle,
+  infrastructure}-trajectories`, `traffic-light`, `maps/` — see
+  `AIR-THU/DAIR-V2X-Seq/dataset/v2x-seq-tfd/README.md`. Anonymous download is often
+  blocked by Drive's per-file quota ("Too many users have viewed or downloaded this file
+  recently"); retry later, or add the folder to your own Drive and download from there.
+
 ## OPV2V + V2V4Real
 
 Needed by CMP, and directly relevant to the V2X research direction (see

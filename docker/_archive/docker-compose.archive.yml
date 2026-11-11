@@ -1,0 +1,182 @@
+# Archived services (removed from the active docker-compose.yml on 2026-11-10, checklist B1).
+# Kept verbatim for reference. To restore one: paste its block back into docker-compose.yml,
+# git mv docker/_archive/<Name> docker/<Name>, and re-add it to setup.sh (see README.md here).
+services:
+  realmotion:
+    build: ./repos/RealMotion
+    image: motion-prediction/realmotion:latest
+    container_name: realmotion
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: ["gpu"]
+    ipc: host
+    volumes:
+      - ./repos/RealMotion:/workspace
+      - /raid/argoverse2/motion_forecasting:/data/argoverse2:ro
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+
+  trajflow:
+    build: ./repos/TrajFlow
+    image: motion-prediction/trajflow:latest
+    container_name: trajflow
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: ["gpu"]
+    ipc: host
+    volumes:
+      - ./repos/TrajFlow:/workspace
+      - /raid/waymo:/data/waymo:ro
+      - /raid/scratch/trajflow_data_staging:/workspace/data_staging
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+
+  sceneinformer:
+    build: ./repos/SceneInformer
+    image: motion-prediction/sceneinformer:latest
+    container_name: sceneinformer
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: ["gpu"]
+    ipc: host
+    environment:
+      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128
+    volumes:
+      - ./repos/SceneInformer:/workspace
+      - /raid/waymo:/data/waymo:ro
+      - /raid/scratch/sceneinformer_data_staging:/workspace/data_staging
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+
+  mtr:
+    build: ./repos/MTR
+    image: motion-prediction/mtr:latest
+    container_name: mtr
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: ["gpu"]
+    ipc: host
+    volumes:
+      - ./repos/MTR:/workspace
+      - /raid/waymo:/data/waymo:ro
+      - /raid/scratch/mtr_data_staging:/workspace/data_staging
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+
+  emp:
+    build: ./repos/emp
+    image: motion-prediction/emp:latest
+    container_name: emp
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: ["gpu"]
+    ipc: host
+    volumes:
+      - ./repos/emp:/workspace
+      - /raid/argoverse2/motion_forecasting:/data/argoverse2:ro
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+
+  pretraining-synthetic:
+    build: ./repos/pretraining-synthetic
+    image: motion-prediction/pretraining-synthetic:latest
+    container_name: pretraining-synthetic
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: ["gpu"]
+    ipc: host
+    volumes:
+      - ./repos/pretraining-synthetic:/workspace
+      - /raid/argoverse1_1/motion_forecasting:/data/argoverse1:ro
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+
+  gameformer:
+    build: ./repos/GameFormer
+    image: motion-prediction/gameformer:latest
+    container_name: gameformer
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: ["gpu"]
+    ipc: host
+    volumes:
+      - ./repos/GameFormer:/workspace
+      - /raid/waymo:/data/waymo:ro
+      - /raid/scratch/gameformer_data_staging:/workspace/data_staging
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+
+  unitraj:
+    build: ./repos/UniTraj
+    image: motion-prediction/unitraj:latest
+    container_name: unitraj
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: ["gpu"]
+    ipc: host
+    volumes:
+      - ./repos/UniTraj:/workspace
+      - /raid/waymo:/data/waymo:ro
+      - /raid/nuscenes:/data/nuscenes:ro
+      - /raid/argoverse2:/data/argoverse2:ro
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+
+  uniad:
+    build: ./repos/UniAD
+    image: motion-prediction/uniad:latest
+    container_name: uniad
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: ["gpu"]
+    ipc: host
+    volumes:
+      - ./repos/UniAD:/workspace
+      - /raid/nuscenes:/data/nuscenes:ro
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
