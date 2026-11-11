@@ -1,10 +1,24 @@
 # Datasets
 
-All datasets these repos need are on `/raid`: Argoverse 1, Argoverse 2, nuScenes, Waymo
-`scenario`, OPV2V, and V2V4Real. No account-gated downloads remain. What's left
-per-repo is each one's own *preprocessing* step (raw data → the format that repo's
-dataloader actually expects), which is real work in its own right — see
-[`TRAINING_PLAN.md`](TRAINING_PLAN.md).
+Real datasets only (CLAUDE.md, standing decision 1). What is on `/raid` as of 2026-11-11:
+
+| Path | Size | Used by |
+| --- | --- | --- |
+| `/raid/datasets/V2X-Seq-TFD/V2X-Seq-TFD` | 125 GB (+63 GB zips in `_zips/`) | V2X baselines (V2X-Graph, HiVT plugin, V2INet, Co-MTP) |
+| `/raid/datasets/V2X-Traj/v2x-traj` | 11 GB | V2X-Graph |
+| `/raid/datasets/V2V4Real` | 41 GB | CMP |
+| `/raid/argoverse2` | — | QCNet (pretraining / checkpoint sanity check) |
+| `/raid/argoverse1_1` | 327 GB | kept until the HiVT sanity check (official HiVT checkpoints are AV1); then delete |
+| `/raid/waymo/scenario` (`training`, `validation`, `testing`, `*_interactive`) | — | kept (Mario's choice), no active service |
+| `/raid/nuscenes` | — | GaussianCaR collaboration |
+| `/raid/scratch/qcnet_data_staging` | — | QCNet preprocessing caches |
+
+**Deleted on 2026-11-11 (checklist A3, approved by Mario):** `/raid/datasets/OPV2V`
+(197 GB, simulated), `/raid/waymo/scenario/training_20s` (87 GB, only SceneInformer),
+`/raid/scratch/{gameformer,trajflow,mtr,sceneinformer}_data_staging` (1.3 TB + 592 GB +
+491 GB + 205 GB, archived repos' preprocessing), `repos/pretraining-synthetic` (bundled
+synthetic set), and the archived Docker images (`mtr`, `realmotion`, `sceneinformer`,
+`gameformer`). The sections below on OPV2V and the Waymo staging are kept as history.
 
 **Waymo `tf_example` was deleted** (was ~1.1TB, at `/raid/waymo/tf_example`) — it was
 never used by any of the 11 built repos, all of which need `scenario` format
@@ -27,7 +41,14 @@ dataset terms of use are on <https://thudair.baai.ac.cn/index> (the code repos a
   `ego-`, `vehicle-`, `infrastructure-trajectories/{train,val}` with 6062 train / 2020 val
   scenarios each, plus `traffic-light/`, `maps/`, `map_files/` (Argoverse-1-style
   Yizhuang map tables). Downloaded 2026-11-10.
-- **V2X-Seq-TFD** — target `/raid/datasets/V2X-Seq-TFD`. Drive folder
+- **V2X-Seq-TFD** — `/raid/datasets/V2X-Seq-TFD/V2X-Seq-TFD` (125 GB, 309,636 files;
+  split parts + joined zip kept in `_zips/`, 63 GB). Downloaded 2026-11-11 from Mario's
+  own Drive copy via the browser, because the public files stayed quota-blocked for over
+  a day. Joined zip passes `unzip -t`. Scenarios per split: cooperative view 25,574 train /
+  10,229 val (each with `cooperative-`, `vehicle-`, `infrastructure-trajectories` and
+  `traffic-light`); `single-infrastructure` 39,427 / 15,770; `single-vehicle` 40,001 /
+  16,000; 28 maps (`maps/yizhuang_hdmap*.json`). Cooperative CSVs carry extra columns
+  `vic_tag`, `from_side`, `car_side_id`, `road_side_id`. Source: Drive folder
   `1yDnlrPCKImpVfI1OPBYyzLFWkhZP5v-7`, `Full Dataset (train & val)/`: split zip
   `V2X-Seq-TFD.z01`–`.z06` (5.0 GB each) + `V2X-Seq-TFD.zip` (1.3 GB), ~31 GB in total.
   Join with `zip -s 0 V2X-Seq-TFD.zip --out full.zip` (or `7z x V2X-Seq-TFD.zip`) before
@@ -37,7 +58,7 @@ dataset terms of use are on <https://thudair.baai.ac.cn/index> (the code repos a
   blocked by Drive's per-file quota ("Too many users have viewed or downloaded this file
   recently"); retry later, or add the folder to your own Drive and download from there.
 
-## OPV2V + V2V4Real
+## OPV2V + V2V4Real (OPV2V deleted 2026-11-11; history)
 
 Needed by CMP, and directly relevant to the V2X research direction (see
 [`PHD_ROADMAP.md`](PHD_ROADMAP.md)). **Both are fully downloaded and extracted**, at
@@ -69,6 +90,8 @@ official sources are:
   OpenCOOD-based pipeline expects), not the separate KITTI-format one.
 
 ## Waymo Open Motion Dataset, `scenario` format
+
+*2026-11-11: `training_20s` deleted (A3); the other splits stay. The services below are archived.*
 
 Needed by TrajFlow, SceneInformer, GameFormer, and MTR (added later, see
 `MODELS_OVERVIEW.md`) — distinct from the `tf_example` format
