@@ -353,5 +353,14 @@ main [README](../README.md) for the "adding a repo" workflow these apply to.
   `PYTHONHASHSEED=0` so caches are byte-reproducible. The first 878 val files (serial
   upstream run + a 6-scenario test) were made without it; kept, since they are only
   permuted, not different.
+- **`TemporalData.__inc__` has the PyG 1.x signature but `requirements.txt` pins PyG
+  2.6.1**, whose batching calls `__inc__(key, value, store)` → every `DataLoader` batch
+  fails with `takes 3 positional arguments but 4 were given` (so `eval.py`/`train.py`
+  don't run as released). `docker/V2X-Graph/patches/0001-temporaldata-inc-pyg2.patch`
+  forwards `*args, **kwargs`; `setup.sh` applies it with `git apply` (idempotent).
+  With it, the official TFD checkpoints reproduce the paper (`docs/RESULTS.md`).
+- **The host has no `git-lfs`, so plain `git status`/`diff` in `repos/V2X-Graph` fails**
+  (`git-lfs: not found`). Use `git -c filter.lfs.process= -c filter.lfs.required=false
+  -c filter.lfs.smudge=cat -c filter.lfs.clean=cat ...`, or run git inside the container.
 - **Unreported in the README:** its V2X-Traj "V2X" minFDE of 0.13 is almost certainly a
   typo (≈1.13 given minADE 0.72); don't chase it when comparing.

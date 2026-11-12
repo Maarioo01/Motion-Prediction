@@ -62,6 +62,20 @@ apply_patches() {
     #   echo "[setup] applying docker/<Name>/patches (... - see BUILD_GOTCHAS.md)"
     #   cp "docker/<Name>/patches/<file>" "repos/<Name>/<path>/<file>"
     #   ;;
+    V2X-Graph)
+      # Unified diffs against the pinned upstream commit; idempotent (skips if already applied).
+      # 0001: TemporalData.__inc__ uses the PyG 1.x signature, but requirements pin PyG 2.6.1,
+      #       whose batching passes an extra 'store' arg -> every DataLoader batch fails.
+      local p
+      for p in docker/$name/patches/*.patch; do
+        if git -C "repos/$name" apply --reverse --check "$PWD/$p" 2>/dev/null; then
+          echo "[setup] $p already applied"
+        else
+          echo "[setup] applying $p (see BUILD_GOTCHAS.md, V2X-Graph)"
+          git -C "repos/$name" apply "$PWD/$p"
+        fi
+      done
+      ;;
     *)
       echo "[setup] WARNING: docker/$name/patches exists but setup.sh has no rule for it"
       ;;

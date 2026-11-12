@@ -54,8 +54,12 @@ source of *why*; this file is the source of *what is done*.
 
 - [ ] **C1.** HiVT on V2X-Seq: number obtained vs published (V2X-Graph paper, Table 1:
       1.12 / 1.97 / 0.30 for HiVT + PP-VIC).
-- [ ] **C2.** V2X-Graph checkpoint on V2X-Seq: number obtained vs published (1.05 / 1.79 / 0.25).
+- [x] **C2.** V2X-Graph checkpoint on V2X-Seq: number obtained vs published (1.05 / 1.79 / 0.25).
+      *2026-11-12: reproduced on TFD val — V2I 1.046 / 1.787 / 0.254, ego-only 1.160 /
+      2.021 / 0.303 (published 1.16 / 2.02 / 0.30). Commit `b6cf34b` + one compatibility
+      patch (PyG 2.x `__inc__` signature); details in [`docs/RESULTS.md`](../RESULTS.md).*
 - [ ] **C3.** Record for every run: upstream commit hash, config, seed, split, number.
+      *2026-11-12: ledger started in [`docs/RESULTS.md`](../RESULTS.md) (ongoing).*
 
 ## D. Warm-up and side tasks
 
