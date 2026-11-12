@@ -5,7 +5,7 @@
 # this repo, only fetched fresh from the original authors.
 #
 # Usage:
-#   ./setup.sh          # clone + overlay the active repos (QCNet, CMP)
+#   ./setup.sh          # clone + overlay the active repos (QCNet, CMP, V2X-Graph, DAIR-V2X-Seq)
 #   ./setup.sh --all    # also clone repos that are planned but not built yet
 #                        # (V2I_trajectory_prediction - checklist B3)
 #
@@ -16,6 +16,10 @@ cd "$(dirname "$0")"
 declare -A REPOS=(
   ["QCNet"]="https://github.com/ZikangZhou/QCNet.git"
   ["CMP"]="https://github.com/tasl-lab/CMP.git"
+  ["V2X-Graph"]="https://github.com/AIR-THU/V2X-Graph.git"
+  # No image of its own: mounted into v2x-graph for its dataset/map API and map-merge
+  # tool, and the source of the HiVT baseline plugin (checklist B5).
+  ["DAIR-V2X-Seq"]="https://github.com/AIR-THU/DAIR-V2X-Seq.git"
 )
 
 declare -A EXTRA_REPOS=(

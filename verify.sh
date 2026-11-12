@@ -13,12 +13,13 @@ cd "$(dirname "$0")"
 
 declare -A CHECKS=(
   [qcnet]="python -c \"import torch, torch_geometric, torch_scatter, torch_cluster, pytorch_lightning, av2; assert torch.cuda.is_available()\""
+  [v2x-graph]="python -c \"import torch, torch_geometric, pytorch_lightning, torchmetrics, lap, shapely, scipy, cv2; from torch_geometric.nn import MessagePassing; from dair_map_api import DAIRV2XMap; from argoverse.utils.centerline_utils import centerline_to_polygon; assert torch.__version__=='1.12.1+cu116'; assert torch.cuda.is_available(); x=torch.randn(4,8).cuda(); print(torch.cuda.get_device_name(0), (x@x.T).sum().item())\""
   [cmp]="python -c \"import torch, torchvision, torch_geometric, spconv, opencood; from mtr.ops.knn import knn_utils; assert torch.cuda.is_available()\""
 )
 
 SERVICES=("$@")
 if [ "${#SERVICES[@]}" -eq 0 ]; then
-  SERVICES=(qcnet cmp)
+  SERVICES=(qcnet cmp v2x-graph)
 fi
 
 overall=0

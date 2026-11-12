@@ -301,3 +301,34 @@ main [README](../README.md) for the "adding a repo" workflow these apply to.
   `\r`-separated rewrite that a file keeps in full. QCNet's 64-epoch log reached several
   GB. Read such logs with `tr '\r' '\n' < log | tail`, and for long runs consider
   `--enable_progress_bar`-style flags or periodic truncation.
+
+## V2X-Graph (added 2026-11-12, checklist B2)
+
+- **README says Python 3.8, `requirements.txt` needs ≥ 3.10.** `scipy==1.15.3` and
+  `Shapely==2.1.0` have no 3.8 wheels; the image uses 3.10 (torch 1.12.1+cu116 has cp310
+  wheels). cu116 runs on the 3090 but not on a 5090 (sm_120 needs CUDA ≥ 12.8).
+- **`pytorch_lightning==1.5.2` imports `pkg_resources`** → same setuptools gotcha as above;
+  `setuptools==69.5.1` is pinned in the same pip call as the requirements.
+- **argoverse-api (`--no-deps`) still needs 4 of its deps at import time**:
+  `argoverse/utils/__init__.py` pulls `mpl_plotting_utils` etc. Found by importing every
+  entry point (labels, dataset, model, `train`, `eval`, `maps_merge.py`): `descartes`,
+  `imageio`, `omegaconf`, `colour`. Nothing else from its 2021 pin list is needed.
+- **`dair_map_api` reads `$DATA_ROOT/map_files` at import time** (crashes with a
+  `NoneType` path error if unset). `docker-compose.yml` sets
+  `DATA_ROOT=/workspace/data_staging/tfd`; override with `-e DATA_ROOT=...` for V2X-Traj.
+- **The released V2X-Seq-TFD doesn't match the layout the code expects.** Code reads
+  `<view>/<split>/data/*.csv`, writes outputs next to the raw data, and reads a
+  `v2x_fusion/` folder no released script creates (upstream issue #6: it is the
+  vehicle-side trajectories). `extras/prepare_tfd_layout.sh` builds a writable symlink
+  tree in `/raid/scratch/v2xgraph_data/tfd`. Note the two different roots: label
+  generation and `maps_merge.py` take the TFD root, `preprocess.py`/`train.py`/`eval.py`
+  take `<TFD root>/cooperative-vehicle-infrastructure`.
+- **Checkpoints are Git LFS objects** (133-byte pointers after a plain clone) and the host
+  has no `git-lfs`; the entrypoint fetches them on first start and chowns them back.
+  Detecting pointers with `find -size -1k` silently fails: `find` rounds sizes *up* to
+  whole KiB, so `-1k` only matches empty files. Use `-size -1024c`.
+- **`traj_match_labels/` has its own `utils.py`** that shadows the top-level `utils.py`
+  (which defines `TemporalData`). Run label generation from inside that folder, and the
+  rest from the repo root, in separate processes.
+- **Unreported in the README:** its V2X-Traj "V2X" minFDE of 0.13 is almost certainly a
+  typo (≈1.13 given minADE 0.72); don't chase it when comparing.

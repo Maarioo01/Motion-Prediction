@@ -100,12 +100,12 @@ Active services (in `setup.sh` and `docker-compose.yml`):
 |---|---|---|---|---|
 | [QCNet](https://github.com/ZikangZhou/QCNet) | ✅ working, **trained from scratch (64 epochs) + official checkpoint reproduces the paper exactly** - see [`TRAINING_PLAN.md`](docs/TRAINING_PLAN.md). Base for our own model; to be adapted to V2X-Seq | `/raid/argoverse2` (present); preprocessed caches in `/raid/scratch/qcnet_data_staging` | ✅ [AV2 marginal](https://drive.google.com/file/d/1OKBytt6N6BdRa9FWmS7F1-YvF0YectBv/view) | Apache-2.0 |
 | [CMP](https://github.com/tasl-lab/CMP) | ✅ working (env); V2V4Real only (checklist D1) | `/raid/datasets/V2V4Real` (present) | see repo's `docs/prepare_dataset_checkpoints.md` | none stated |
+| [V2X-Graph](https://github.com/AIR-THU/V2X-Graph) | ✅ env working (B2); TFD preprocessing in progress, then C2 | `/raid/datasets/V2X-Seq-TFD`, `/raid/datasets/V2X-Traj` (present); layout + caches in `/raid/scratch/v2xgraph_data` | ✅ in repo via Git LFS (entrypoint fetches them) | Apache-2.0 |
 
 Planned V2X baselines (Phase 0 checklist B2-B5):
 
 | Repo | Status | Dataset | Checkpoints | License |
 |---|---|---|---|---|
-| [V2X-Graph](https://github.com/AIR-THU/V2X-Graph) | ⏳ to add (B2) | V2X-Seq-TFD, V2X-Traj | ✅ in repo via Git LFS (needs `git lfs pull`) | Apache-2.0 |
 | [V2I_trajectory_prediction](https://github.com/xichennn/V2I_trajectory_prediction) (V2INet) | ⏳ to add (B3); cloned by `setup.sh --all` | V2X-Seq-TFD | ❌ | none (all rights reserved by default) |
 | [Co-MTP](https://github.com/xiaomiaozhang/Co-MTP) | ⏳ to add (B4) | V2X-Seq-TFD | ❌ | none stated |
 | HiVT baseline ([DAIR-V2X-Seq](https://github.com/AIR-THU/DAIR-V2X-Seq) `projects/HiVT_plugin`) | ⏳ to add (B5); likely no separate service needed | V2X-Seq-TFD | ❌ not in repo (README expects `checkpoints/online.ckpt`) | Apache-2.0 (HiVT) |
@@ -136,6 +136,12 @@ build/test process:
 # dataset layout, and batch 4 runs out of memory on one 24GB card). Verified train + inference
 # commands are in docs/TRAINING_PLAN.md ("QCNet: trained from scratch + validated").
 # Inference/eval + plots: qcnet_inference.py (from docker/QCNet/extras/), results in outputs/qcnet_inference/
+
+# V2X-Graph on V2X-Seq-TFD (data layout: see docs/BUILD_GOTCHAS.md, "V2X-Graph")
+docker compose run --rm v2x-graph bash prepare_tfd_layout.sh
+docker compose run --rm v2x-graph python /deps/DAIR-V2X-Seq/tools/data_converter/maps_merge.py --data_root /workspace/data_staging/tfd
+docker compose run --rm v2x-graph bash -c "cd traj_match_labels && python generate_label.py --data_root /workspace/data_staging/tfd --dataset V2X-Seq-TFD"
+docker compose run --rm v2x-graph python preprocess.py --root /workspace/data_staging/tfd/cooperative-vehicle-infrastructure --dataset V2X-Seq-TFD
 ```
 
 For **CMP**, the exact flags weren't double-checked yet — get a shell and read the repo's
