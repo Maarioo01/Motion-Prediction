@@ -340,6 +340,9 @@ main [README](../README.md) for the "adding a repo" workflow these apply to.
   workers), atomic writes (tmp + rename) and the same skip-if-done resume rule. 6 workers
   ≈ 1 scenario/s at ~11 GB RSS. Also cap the container: `docker update --memory 48g
   --memory-swap 48g <container>`, so a spike kills the container, not the host.
+  **Only for CPU-only jobs:** on this host (cgroup v2) `docker update` on a running
+  container resets its device rules and the GPU disappears inside it (`You requested
+  GPUs: [0] But your machine only has: []`). Run eval/training in a fresh container.
 - **`utils.rowwise_in` is a dense O(|a|·|b|) broadcast.** It checks which agent-pair
   edges (~N²) are V2X pairs by materialising an `|a| × |b| × 2` tensor; one crowded val
   scenario asked for 128 GB (probably what OOM-killed the first serial run). The driver
@@ -368,5 +371,10 @@ main [README](../README.md) for the "adding a repo" workflow these apply to.
   ships its own prebuilt `map_files/` (different from the merged TFD ones), so set
   `DATA_ROOT=/workspace/data_staging/v2x-traj` (the compose default points at TFD).
   History is 40 steps (4 s) + 40 future, not 50 + 50.
-- **Unreported in the README:** its V2X-Traj "V2X" minFDE of 0.13 is almost certainly a
-  typo (≈1.13 given minADE 0.72); don't chase it when comparing.
+- **The README's V2X-Traj "V2X" minFDE of 0.13 is a typo for 1.13**: the official
+  checkpoint gives 1.126 (`docs/RESULTS.md`).
+- **The released V2X-Traj `ego.ckpt` predates the released code**: it carries
+  `interpretable_graph._motion_embed` (1×128), which the model no longer defines, so
+  `load_from_checkpoint` fails (`Unexpected key(s) in state_dict`). Dropping the key
+  loads it, but it gives 0.96 / 1.70 / 0.20 vs published 0.90 / 1.56 / 0.17. Not a
+  valid reproduction; retrain ego on V2X-Traj. The other five checkpoints load strictly.

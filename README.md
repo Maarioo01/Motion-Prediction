@@ -100,7 +100,7 @@ Active services (in `setup.sh` and `docker-compose.yml`):
 |---|---|---|---|---|
 | [QCNet](https://github.com/ZikangZhou/QCNet) | ✅ working, **trained from scratch (64 epochs) + official checkpoint reproduces the paper exactly** - see [`TRAINING_PLAN.md`](docs/TRAINING_PLAN.md). Base for our own model; to be adapted to V2X-Seq | `/raid/argoverse2` (present); preprocessed caches in `/raid/scratch/qcnet_data_staging` | ✅ [AV2 marginal](https://drive.google.com/file/d/1OKBytt6N6BdRa9FWmS7F1-YvF0YectBv/view) | Apache-2.0 |
 | [CMP](https://github.com/tasl-lab/CMP) | ✅ working (env); V2V4Real only (checklist D1) | `/raid/datasets/V2V4Real` (present) | see repo's `docs/prepare_dataset_checkpoints.md` | none stated |
-| [V2X-Graph](https://github.com/AIR-THU/V2X-Graph) | ✅ **official TFD checkpoints reproduce the paper** (V2I 1.05 / 1.79 / 0.25 on val, see [`RESULTS.md`](docs/RESULTS.md)); TFD train preprocessing in progress | `/raid/datasets/V2X-Seq-TFD`, `/raid/datasets/V2X-Traj` (present); layout + caches in `/raid/scratch/v2xgraph_data` | ✅ in repo via Git LFS (entrypoint fetches them) | Apache-2.0 |
+| [V2X-Graph](https://github.com/AIR-THU/V2X-Graph) | ✅ **official TFD checkpoints reproduce the paper** (TFD V2I 1.05 / 1.79 / 0.25 on val; V2X-Traj V2I/V2V/V2X too, ego ckpt does not, see [`RESULTS.md`](docs/RESULTS.md)) | `/raid/datasets/V2X-Seq-TFD`, `/raid/datasets/V2X-Traj` (present); layout + caches in `/raid/scratch/v2xgraph_data` | ✅ in repo via Git LFS (entrypoint fetches them) | Apache-2.0 |
 
 Planned V2X baselines (Phase 0 checklist B2-B5):
 

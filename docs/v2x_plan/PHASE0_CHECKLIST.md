@@ -57,7 +57,10 @@ source of *why*; this file is the source of *what is done*.
 - [x] **C2.** V2X-Graph checkpoint on V2X-Seq: number obtained vs published (1.05 / 1.79 / 0.25).
       *2026-11-12: reproduced on TFD val — V2I 1.046 / 1.787 / 0.254, ego-only 1.160 /
       2.021 / 0.303 (published 1.16 / 2.02 / 0.30). Commit `b6cf34b` + one compatibility
-      patch (PyG 2.x `__inc__` signature); details in [`docs/RESULTS.md`](../RESULTS.md).*
+      patch (PyG 2.x `__inc__` signature); details in [`docs/RESULTS.md`](../RESULTS.md).
+      Also V2X-Traj val: V2I / V2V / V2X reproduce (0.80 / 1.29 / 0.14, 0.77 / 1.26 / 0.12,
+      0.71 / 1.13 / 0.10); the released ego checkpoint does not (0.96 / 1.70 / 0.20 vs
+      0.90 / 1.56 / 0.17; it predates the released code) → retrain ego there.*
 - [ ] **C3.** Record for every run: upstream commit hash, config, seed, split, number.
       *2026-11-12: ledger started in [`docs/RESULTS.md`](../RESULTS.md) (ongoing).*
 
