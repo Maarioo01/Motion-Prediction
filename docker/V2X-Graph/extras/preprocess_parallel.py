@@ -9,6 +9,13 @@ driver differs:
   * atomic writes (tmp file + rename), so a killed run never leaves a truncated .pt;
   * resumable: scenarios whose .pt already exists are skipped (same rule as upstream).
 
+Memory fix (output-identical): upstream `utils.rowwise_in(a, b)` tests which rows of `a`
+(all agent-pair edges, ~N^2) occur in `b` (V2X pairs) by broadcasting an |a| x |b| x 2
+tensor. Crowded scenes need >100 GB (one val scenario asked for 128 GB). It is replaced,
+in the dataset modules only, by `rowwise_in_isin`: each (i, j) row becomes one int64 key
+and `torch.isin` does the lookup. Same boolean mask; checked against the original on
+random inputs (`--selftest`) and on already-written .pt files.
+
 Determinism: upstream gathers map lane ids (strings) in a Python set, so lane order in
 each .pt depends on PYTHONHASHSEED (values are identical, only permuted). Launch with
 PYTHONHASHSEED=0 for byte-reproducible caches; the driver warns otherwise.
@@ -29,10 +36,46 @@ import torch  # noqa: E402
 _dm = None
 
 
+def rowwise_in_isin(a, b):
+    """Same result as upstream utils.rowwise_in for 2-column integer index tensors."""
+    from utils import rowwise_in as _orig
+    if a.dim() != 2 or b.dim() != 2 or a.shape[1] != 2 or b.shape[1] != 2 or a.is_floating_point():
+        return _orig(a, b)
+    if a.shape[0] == 0 or b.shape[0] == 0:
+        return torch.zeros(a.shape[0], dtype=torch.bool)
+    m = int(max(a.max(), b.max())) + 1
+    lo = int(min(a.min(), b.min()))
+    ka = (a[:, 0] - lo) * m + (a[:, 1] - lo)
+    kb = (b[:, 0] - lo) * m + (b[:, 1] - lo)
+    return torch.isin(ka, kb)
+
+
+def _patch():
+    import datasets.tfd_dataset as tfd
+    import datasets.v2x_traj_dataset as v2xt
+    tfd.rowwise_in = rowwise_in_isin
+    v2xt.rowwise_in = rowwise_in_isin
+
+
+def selftest(n=2000):
+    from utils import rowwise_in as orig
+    g = torch.Generator().manual_seed(0)
+    for t in range(n):
+        na, nb, hi = [int(v) for v in torch.randint(0, 60, (3,), generator=g)]
+        hi += 1
+        a = torch.randint(0, hi, (na, 2), generator=g)
+        b = torch.randint(0, hi, (nb, 2), generator=g)
+        if t % 3 == 0 and na:
+            b = torch.cat([b, a[: max(1, na // 2)]])  # guarantee hits
+        assert torch.equal(orig(a, b), rowwise_in_isin(a, b)), (a, b)
+    print(f'selftest ok: {n} random cases identical to upstream rowwise_in')
+
+
 def _init():
     global _dm
     from dair_map_api import DAIRV2XMap
     torch.set_num_threads(1)
+    _patch()
     _dm = DAIRV2XMap()
 
 
@@ -51,13 +94,19 @@ def _one(job):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument('--root', required=True, help='.../cooperative-vehicle-infrastructure')
-    p.add_argument('--split', required=True, choices=['train', 'val'])
+    p.add_argument('--selftest', action='store_true', help='check rowwise_in_isin and exit')
+    p.add_argument('--root', required=False, help='.../cooperative-vehicle-infrastructure')
+    p.add_argument('--split', choices=['train', 'val'])
     p.add_argument('--workers', type=int, default=8)
     p.add_argument('--maxtasksperchild', type=int, default=50)
     p.add_argument('--limit', type=int, default=0, help='process only N scenarios (testing)')
     p.add_argument('--local_radius', type=float, default=50)
     a = p.parse_args()
+    if a.selftest:
+        selftest()
+        return
+    if not a.root or not a.split:
+        p.error('--root and --split are required')
     if os.environ.get('PYTHONHASHSEED') is None:
         print('[warn] PYTHONHASHSEED unset: lane order in the .pt files will not be reproducible', flush=True)
 

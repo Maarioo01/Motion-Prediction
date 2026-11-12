@@ -340,6 +340,12 @@ main [README](../README.md) for the "adding a repo" workflow these apply to.
   workers), atomic writes (tmp + rename) and the same skip-if-done resume rule. 6 workers
   ≈ 1 scenario/s at ~11 GB RSS. Also cap the container: `docker update --memory 48g
   --memory-swap 48g <container>`, so a spike kills the container, not the host.
+- **`utils.rowwise_in` is a dense O(|a|·|b|) broadcast.** It checks which agent-pair
+  edges (~N²) are V2X pairs by materialising an `|a| × |b| × 2` tensor; one crowded val
+  scenario asked for 128 GB (probably what OOM-killed the first serial run). The driver
+  swaps it, in the dataset modules only, for an int64-key + `torch.isin` version:
+  identical on 2000 random cases (`--selftest`) and on 40 real scenarios (byte-identical
+  `.pt`). `train.py`/`eval.py` only load the caches, so they are unaffected.
 - **Lane order in the `.pt` caches is not reproducible upstream.** Lane ids are strings
   collected in a Python `set`, so their order follows `PYTHONHASHSEED` (random per
   process). Two runs give the same values, permuted (`lane_vectors`, `lane_actor_index`,
