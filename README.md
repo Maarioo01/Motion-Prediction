@@ -144,6 +144,12 @@ docker compose run --rm v2x-graph bash -c "cd traj_match_labels && python genera
 # Not upstream preprocess.py (serial, ~35 h, OOM-killed at 62 GB): same per-scenario code, 6 workers, ~1 scen/s
 for s in val train; do docker compose run --rm -e PYTHONHASHSEED=0 v2x-graph python preprocess_parallel.py \
   --root /workspace/data_staging/tfd/cooperative-vehicle-infrastructure --split $s --workers 6; done
+
+# V2X-Graph on V2X-Traj (ships in the expected layout with prebuilt map_files; no map merge)
+docker compose run --rm v2x-graph bash prepare_v2xtraj_layout.sh
+docker compose run --rm -e DATA_ROOT=/workspace/data_staging/v2x-traj v2x-graph bash -c "cd traj_match_labels && python generate_label.py --data_root /workspace/data_staging/v2x-traj --dataset V2X-Traj"
+for s in val train; do docker compose run --rm -e DATA_ROOT=/workspace/data_staging/v2x-traj -e PYTHONHASHSEED=0 v2x-graph python preprocess_parallel.py \
+  --dataset V2X-Traj --root /workspace/data_staging/v2x-traj --split $s --workers 6; done
 ```
 
 For **CMP**, the exact flags weren't double-checked yet — get a shell and read the repo's

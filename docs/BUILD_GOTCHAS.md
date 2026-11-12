@@ -362,5 +362,11 @@ main [README](../README.md) for the "adding a repo" workflow these apply to.
 - **The host has no `git-lfs`, so plain `git status`/`diff` in `repos/V2X-Graph` fails**
   (`git-lfs: not found`). Use `git -c filter.lfs.process= -c filter.lfs.required=false
   -c filter.lfs.smudge=cat -c filter.lfs.clean=cat ...`, or run git inside the container.
+- **V2X-Traj: `V2XTrajDataset` reads a `v2x_test/` folder** that the release doesn't
+  have; `process_argoverse` reads it as `ego_df` next to the infrastructure and vehicle
+  views, so `extras/prepare_v2xtraj_layout.sh` links it to `ego-trajectories`. V2X-Traj
+  ships its own prebuilt `map_files/` (different from the merged TFD ones), so set
+  `DATA_ROOT=/workspace/data_staging/v2x-traj` (the compose default points at TFD).
+  History is 40 steps (4 s) + 40 future, not 50 + 50.
 - **Unreported in the README:** its V2X-Traj "V2X" minFDE of 0.13 is almost certainly a
   typo (≈1.13 given minADE 0.72); don't chase it when comparing.

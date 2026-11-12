@@ -1,7 +1,7 @@
-"""Parallel, resumable, memory-bounded replacement for `python preprocess.py` (V2X-Seq-TFD).
+"""Parallel, resumable, memory-bounded replacement for `python preprocess.py` (V2X-Seq-TFD, V2X-Traj).
 
 The output is identical to upstream: each scenario goes through the unmodified
-`datasets.tfd_dataset.process_argoverse` + `utils.TemporalData` + `torch.save`. Only the
+`datasets.{tfd,v2x_traj}_dataset.process_argoverse` + `utils.TemporalData` + `torch.save`. Only the
 driver differs:
   * a process pool instead of one serial loop (upstream: ~3.5 s/scenario -> ~35 h total);
   * `maxtasksperchild` so each worker restarts periodically and cannot grow without bound
@@ -80,11 +80,14 @@ def _init():
 
 
 def _one(job):
-    split, raw_path, road_path, asso_path, out_path, radius = job
-    from datasets.tfd_dataset import process_argoverse
+    dataset, split, raw_path, extra_paths, out_path, radius = job
+    if dataset == 'V2X-Seq-TFD':
+        from datasets.tfd_dataset import process_argoverse
+    else:
+        from datasets.v2x_traj_dataset import process_argoverse
     from utils import TemporalData
     t0 = time.time()
-    kwargs = process_argoverse(split, raw_path, _dm, radius, road_path, asso_path)
+    kwargs = process_argoverse(split, raw_path, _dm, radius, *extra_paths)
     data = TemporalData(**kwargs)
     tmp = out_path + '.tmp'
     torch.save(data, tmp)
@@ -92,10 +95,22 @@ def _one(job):
     return os.path.basename(out_path), time.time() - t0
 
 
+# Directories, relative to --root, exactly as in the upstream Dataset classes.
+# raw: the scenario list / ego view; extra: positional args after `radius`; out: processed.
+LAYOUT = {
+    'V2X-Seq-TFD': dict(raw='v2x_fusion', out='v2x_fusion',
+                        extra=['infrastructure-trajectories', 'traj_match_labels']),
+    'V2X-Traj': dict(raw='v2x_test', out='v2x_test',
+                     extra=['infrastructure-trajectories', 'vehicle-trajectories', 'traj_match_labels']),
+}
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--selftest', action='store_true', help='check rowwise_in_isin and exit')
-    p.add_argument('--root', required=False, help='.../cooperative-vehicle-infrastructure')
+    p.add_argument('--root', required=False,
+                   help='TFD: .../cooperative-vehicle-infrastructure; V2X-Traj: the v2x-traj root')
+    p.add_argument('--dataset', default='V2X-Seq-TFD', choices=list(LAYOUT))
     p.add_argument('--split', choices=['train', 'val'])
     p.add_argument('--workers', type=int, default=8)
     p.add_argument('--maxtasksperchild', type=int, default=50)
@@ -110,10 +125,10 @@ def main():
     if os.environ.get('PYTHONHASHSEED') is None:
         print('[warn] PYTHONHASHSEED unset: lane order in the .pt files will not be reproducible', flush=True)
 
-    raw_dir = os.path.join(a.root, 'v2x_fusion', a.split, 'data')
-    road_dir = os.path.join(a.root, 'infrastructure-trajectories', a.split, 'data')
-    asso_dir = os.path.join(a.root, 'traj_match_labels', a.split, 'data')
-    out_dir = os.path.join(a.root, 'v2x_fusion', a.split, 'processed')
+    lay = LAYOUT[a.dataset]
+    raw_dir = os.path.join(a.root, lay['raw'], a.split, 'data')
+    extra_dirs = [os.path.join(a.root, d, a.split, 'data') for d in lay['extra']]
+    out_dir = os.path.join(a.root, lay['out'], a.split, 'processed')
     os.makedirs(out_dir, exist_ok=True)
 
     for f in os.listdir(out_dir):  # leftovers of a killed run
@@ -123,7 +138,7 @@ def main():
     todo = sorted(f for f in os.listdir(raw_dir) if os.path.splitext(f)[0] + '.pt' not in done)
     if a.limit:
         todo = todo[:a.limit]
-    jobs = [(a.split, os.path.join(raw_dir, f), os.path.join(road_dir, f), os.path.join(asso_dir, f),
+    jobs = [(a.dataset, a.split, os.path.join(raw_dir, f), [os.path.join(d, f) for d in extra_dirs],
              os.path.join(out_dir, os.path.splitext(f)[0] + '.pt'), a.local_radius) for f in todo]
     print(f'[{a.split}] {len(done)} done, {len(jobs)} to do, {a.workers} workers', flush=True)
 
