@@ -37,7 +37,11 @@ source of *why*; this file is the source of *what is done*.
       *2026-11-10: 9 configs moved with `git mv`; restore notes in
       `docker/_archive/README.md`. Active: qcnet, cmp (both pass `verify.sh`). CMP's OPV2V
       mount removed. Images, `repos/` clones and staging data untouched (A3).*
-- [ ] **B2. Add V2X-Graph** (`AIR-THU/V2X-Graph`, code + checkpoint) as a Docker service.
+- [x] **B2. Add V2X-Graph** (`AIR-THU/V2X-Graph`, code + checkpoint) as a Docker service.
+      *2026-11-12: service `v2x-graph` (Python 3.10, torch 1.12.1+cu116, GPU0), passes
+      `verify.sh`; all 6 checkpoints fetched via LFS. Upstream commit `b6cf34b`,
+      DAIR-V2X-Seq `8a5b4f8`, argoverse-api `f886ac5`. TFD layout/maps/labels/caches in
+      `/raid/scratch/v2xgraph_data`. Build notes in `BUILD_GOTCHAS.md`.*
 - [ ] **B3. Add V2INet** (`xichennn/V2I_trajectory_prediction`, already in `setup.sh --all`).
 - [ ] **B4. Add Co-MTP** (`xiaomiaozhang/Co-MTP`, code only; note its 3 s → 5 s @ 5 Hz
       protocol and its use of the AV's ground-truth future as "plan" — privileged info).

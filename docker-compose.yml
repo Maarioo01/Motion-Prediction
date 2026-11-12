@@ -37,3 +37,29 @@ services:
     working_dir: /workspace
     stdin_open: true
     tty: true
+
+  v2x-graph:
+    build: ./repos/V2X-Graph
+    image: motion-prediction/v2x-graph:latest
+    container_name: v2x-graph
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: ["gpu"]
+    ipc: host
+    environment:
+      # dair_map_api reads $DATA_ROOT/map_files at import time (TFD layout from
+      # prepare_tfd_layout.sh; use /data/v2x-traj for V2X-Traj).
+      - DATA_ROOT=/workspace/data_staging/tfd
+    volumes:
+      - ./repos/V2X-Graph:/workspace
+      - ./repos/DAIR-V2X-Seq:/deps/DAIR-V2X-Seq:ro
+      - /raid/datasets/V2X-Seq-TFD/V2X-Seq-TFD:/data/v2x-seq-tfd:ro
+      - /raid/datasets/V2X-Traj/v2x-traj:/data/v2x-traj:ro
+      - /raid/scratch/v2xgraph_data:/workspace/data_staging
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
