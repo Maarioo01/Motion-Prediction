@@ -330,5 +330,22 @@ main [README](../README.md) for the "adding a repo" workflow these apply to.
 - **`traj_match_labels/` has its own `utils.py`** that shadows the top-level `utils.py`
   (which defines `TemporalData`). Run label generation from inside that folder, and the
   rest from the repo root, in separate processes.
+- **Upstream `preprocess.py` is serial and was OOM-killed.** One process, ~3.5 s per
+  scenario (≈ 35 h for TFD train + val), and it grew until the kernel killed it at the
+  machine's 62 GB after ~870 val scenarios (`docker inspect` → `OOMKilled=true`). One
+  scenario peaks at ~5.7 GB (with the merged 57k-lane map, `get_lane_features` builds a
+  Python list of every lane-segment × agent pair before filtering by radius).
+  `extras/preprocess_parallel.py` calls the same `process_argoverse` + `TemporalData` +
+  `torch.save` per scenario, but with a process pool (`maxtasksperchild` recycles
+  workers), atomic writes (tmp + rename) and the same skip-if-done resume rule. 6 workers
+  ≈ 1 scenario/s at ~11 GB RSS. Also cap the container: `docker update --memory 48g
+  --memory-swap 48g <container>`, so a spike kills the container, not the host.
+- **Lane order in the `.pt` caches is not reproducible upstream.** Lane ids are strings
+  collected in a Python `set`, so their order follows `PYTHONHASHSEED` (random per
+  process). Two runs give the same values, permuted (`lane_vectors`, `lane_actor_index`,
+  …). Harmless for the model (it aggregates over lanes), but run with
+  `PYTHONHASHSEED=0` so caches are byte-reproducible. The first 878 val files (serial
+  upstream run + a 6-scenario test) were made without it; kept, since they are only
+  permuted, not different.
 - **Unreported in the README:** its V2X-Traj "V2X" minFDE of 0.13 is almost certainly a
   typo (≈1.13 given minADE 0.72); don't chase it when comparing.

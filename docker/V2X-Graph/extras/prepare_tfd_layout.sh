@@ -35,4 +35,4 @@ done
 echo "Next:"
 echo "  python /deps/DAIR-V2X-Seq/tools/data_converter/maps_merge.py --data_root $DST"
 echo "  python traj_match_labels/generate_label.py --data_root $DST --dataset V2X-Seq-TFD"
-echo "  DATA_ROOT=$DST python preprocess.py --root $COOP_DST --dataset V2X-Seq-TFD"
+echo "  PYTHONHASHSEED=0 python preprocess_parallel.py --root $COOP_DST --split val --workers 6   (then --split train)"

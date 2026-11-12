@@ -141,7 +141,9 @@ build/test process:
 docker compose run --rm v2x-graph bash prepare_tfd_layout.sh
 docker compose run --rm v2x-graph python /deps/DAIR-V2X-Seq/tools/data_converter/maps_merge.py --data_root /workspace/data_staging/tfd
 docker compose run --rm v2x-graph bash -c "cd traj_match_labels && python generate_label.py --data_root /workspace/data_staging/tfd --dataset V2X-Seq-TFD"
-docker compose run --rm v2x-graph python preprocess.py --root /workspace/data_staging/tfd/cooperative-vehicle-infrastructure --dataset V2X-Seq-TFD
+# Not upstream preprocess.py (serial, ~35 h, OOM-killed at 62 GB): same per-scenario code, 6 workers, ~1 scen/s
+for s in val train; do docker compose run --rm -e PYTHONHASHSEED=0 v2x-graph python preprocess_parallel.py \
+  --root /workspace/data_staging/tfd/cooperative-vehicle-infrastructure --split $s --workers 6; done
 ```
 
 For **CMP**, the exact flags weren't double-checked yet — get a shell and read the repo's
