@@ -57,17 +57,17 @@ unbuilt.)
 
 | Path | Status |
 | --- | --- |
-| `/raid/datasets/V2X-Seq-TFD` | **To download** (checklist A1). |
-| `/raid/datasets/V2X-Traj` | **To download** (checklist A2). |
+| `/raid/datasets/V2X-Seq-TFD/V2X-Seq-TFD` | Downloaded 2026-11-11 (A1; train + val, test not released; zips in `_zips/`). |
+| `/raid/datasets/V2X-Traj/v2x-traj` | Downloaded 2026-11-10 (A2; train + val). |
 | `/raid/datasets/V2V4Real` | Keep (real V2V; CMP). |
 | `/raid/argoverse2` | Keep (QCNet pretraining / checkpoint validation). |
 | `/raid/waymo/scenario` (plain `training`, `validation`, `testing`, interactive splits) | Keep (Mario's choice). |
 | `/raid/nuscenes` | Keep for now (needed by the GaussianCaR collaboration, which uses nuScenes). |
-| `/raid/datasets/OPV2V` | Delete (simulated). |
-| `repos/pretraining-synthetic` bundled synthetic set | Delete with the archived repo. |
-| `/raid/waymo/scenario/training_20s` | Delete candidate (only SceneInformer used it). |
-| `/raid/argoverse1_1` | Delete candidate (only archived repos used it). |
-| `/raid/scratch/*_data_staging` (trajflow, mtr, gameformer, sceneinformer) | Delete (other models' preprocessing). |
+| `/raid/argoverse1_1` | Keep until the HiVT sanity check (official HiVT checkpoints are AV1), then delete candidate. |
+
+Deleted on 2026-11-11 (A3): OPV2V, `waymo/scenario/training_20s`, the
+`/raid/scratch/*_data_staging` folders of archived models, `repos/pretraining-synthetic`
+and the archived Docker images.
 
 Keep [`docs/DATASETS.md`](docs/DATASETS.md) and the README status table in sync with
 what is actually on disk.

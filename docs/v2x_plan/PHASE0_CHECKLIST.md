@@ -10,7 +10,7 @@ source of *why*; this file is the source of *what is done*.
 
 ## A. Data (real datasets only)
 
-- [ ] **A1. V2X-Seq-TFD** (trajectory forecasting part of V2X-Seq, ~51k cooperative
+- [x] **A1. V2X-Seq-TFD** (trajectory forecasting part of V2X-Seq, ~51k cooperative
       scenarios, 10 s at 10 Hz). Find the access route from Spain (official repo
       `AIR-THU/DAIR-V2X-Seq` says free download is for mainland China; look for the
       international application form / OpenDataLab / other official mirror). Download to
@@ -18,12 +18,17 @@ source of *why*; this file is the source of *what is done*.
       *2026-11-10: access route found — public Drive folder linked from `AIR-THU/DAIR-V2X`
       and `AIR-THU/V2X-Graph` (train + val, ~31 GB split zip, no form). Download blocked
       for now by Drive's per-file quota; see `docs/DATASETS.md`.*
+      *2026-11-11: done — via Mario's Drive copy. `/raid/datasets/V2X-Seq-TFD/V2X-Seq-TFD`,
+      125 GB; cooperative view 25,574 train / 10,229 val, 28 maps; zip passes `unzip -t`.*
 - [x] **A2. V2X-Traj** (~10k scenarios, 2 vehicles + infrastructure, 28 intersections).
       Linked from `AIR-THU/V2X-Graph` (Google Drive). Download to `/raid/datasets/V2X-Traj`.
       *2026-11-10: done — `/raid/datasets/V2X-Traj/v2x-traj`, 6062 train / 2020 val
       scenarios (test not released), zip passes `unzip -t`.*
-- [ ] **A3. Real-data-only cleanup**: OPV2V and any simulated/synthetic data removed from
+- [x] **A3. Real-data-only cleanup**: OPV2V and any simulated/synthetic data removed from
       disk (see CLAUDE.md "Datasets" for the keep/delete list). `docs/DATASETS.md` updated.
+      *2026-11-11: done — OPV2V, `training_20s`, 4 staging folders, pretraining-synthetic
+      and 4 archived images deleted (~3.1 TB on `/raid`, 61 GB on `/`). AV1 kept until the
+      HiVT sanity check.*
 
 ## B. Methods in the bench
 
