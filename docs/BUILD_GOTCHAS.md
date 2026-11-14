@@ -301,3 +301,80 @@ main [README](../README.md) for the "adding a repo" workflow these apply to.
   `\r`-separated rewrite that a file keeps in full. QCNet's 64-epoch log reached several
   GB. Read such logs with `tr '\r' '\n' < log | tail`, and for long runs consider
   `--enable_progress_bar`-style flags or periodic truncation.
+
+## V2X-Graph (added 2026-11-12, checklist B2)
+
+- **README says Python 3.8, `requirements.txt` needs ≥ 3.10.** `scipy==1.15.3` and
+  `Shapely==2.1.0` have no 3.8 wheels; the image uses 3.10 (torch 1.12.1+cu116 has cp310
+  wheels). cu116 runs on the 3090 but not on a 5090 (sm_120 needs CUDA ≥ 12.8).
+- **`pytorch_lightning==1.5.2` imports `pkg_resources`** → same setuptools gotcha as above;
+  `setuptools==69.5.1` is pinned in the same pip call as the requirements.
+- **argoverse-api (`--no-deps`) still needs 4 of its deps at import time**:
+  `argoverse/utils/__init__.py` pulls `mpl_plotting_utils` etc. Found by importing every
+  entry point (labels, dataset, model, `train`, `eval`, `maps_merge.py`): `descartes`,
+  `imageio`, `omegaconf`, `colour`. Nothing else from its 2021 pin list is needed.
+- **`dair_map_api` reads `$DATA_ROOT/map_files` at import time** (crashes with a
+  `NoneType` path error if unset). `docker-compose.yml` sets
+  `DATA_ROOT=/workspace/data_staging/tfd`; override with `-e DATA_ROOT=...` for V2X-Traj.
+- **The released V2X-Seq-TFD doesn't match the layout the code expects.** Code reads
+  `<view>/<split>/data/*.csv`, writes outputs next to the raw data, and reads a
+  `v2x_fusion/` folder no released script creates (upstream issue #6: it is the
+  vehicle-side trajectories). `extras/prepare_tfd_layout.sh` builds a writable symlink
+  tree in `/raid/scratch/v2xgraph_data/tfd`. Note the two different roots: label
+  generation and `maps_merge.py` take the TFD root, `preprocess.py`/`train.py`/`eval.py`
+  take `<TFD root>/cooperative-vehicle-infrastructure`.
+- **Checkpoints are Git LFS objects** (133-byte pointers after a plain clone) and the host
+  has no `git-lfs`; the entrypoint fetches them on first start and chowns them back.
+  Detecting pointers with `find -size -1k` silently fails: `find` rounds sizes *up* to
+  whole KiB, so `-1k` only matches empty files. Use `-size -1024c`.
+- **`traj_match_labels/` has its own `utils.py`** that shadows the top-level `utils.py`
+  (which defines `TemporalData`). Run label generation from inside that folder, and the
+  rest from the repo root, in separate processes.
+- **Upstream `preprocess.py` is serial and was OOM-killed.** One process, ~3.5 s per
+  scenario (≈ 35 h for TFD train + val), and it grew until the kernel killed it at the
+  machine's 62 GB after ~870 val scenarios (`docker inspect` → `OOMKilled=true`). One
+  scenario peaks at ~5.7 GB (with the merged 57k-lane map, `get_lane_features` builds a
+  Python list of every lane-segment × agent pair before filtering by radius).
+  `extras/preprocess_parallel.py` calls the same `process_argoverse` + `TemporalData` +
+  `torch.save` per scenario, but with a process pool (`maxtasksperchild` recycles
+  workers), atomic writes (tmp + rename) and the same skip-if-done resume rule. 6 workers
+  ≈ 1 scenario/s at ~11 GB RSS. Also cap the container: `docker update --memory 48g
+  --memory-swap 48g <container>`, so a spike kills the container, not the host.
+  **Only for CPU-only jobs:** on this host (cgroup v2) `docker update` on a running
+  container resets its device rules and the GPU disappears inside it (`You requested
+  GPUs: [0] But your machine only has: []`). Run eval/training in a fresh container.
+- **`utils.rowwise_in` is a dense O(|a|·|b|) broadcast.** It checks which agent-pair
+  edges (~N²) are V2X pairs by materialising an `|a| × |b| × 2` tensor; one crowded val
+  scenario asked for 128 GB (probably what OOM-killed the first serial run). The driver
+  swaps it, in the dataset modules only, for an int64-key + `torch.isin` version:
+  identical on 2000 random cases (`--selftest`) and on 40 real scenarios (byte-identical
+  `.pt`). `train.py`/`eval.py` only load the caches, so they are unaffected.
+- **Lane order in the `.pt` caches is not reproducible upstream.** Lane ids are strings
+  collected in a Python `set`, so their order follows `PYTHONHASHSEED` (random per
+  process). Two runs give the same values, permuted (`lane_vectors`, `lane_actor_index`,
+  …). Harmless for the model (it aggregates over lanes), but run with
+  `PYTHONHASHSEED=0` so caches are byte-reproducible. The first 878 val files (serial
+  upstream run + a 6-scenario test) were made without it; kept, since they are only
+  permuted, not different.
+- **`TemporalData.__inc__` has the PyG 1.x signature but `requirements.txt` pins PyG
+  2.6.1**, whose batching calls `__inc__(key, value, store)` → every `DataLoader` batch
+  fails with `takes 3 positional arguments but 4 were given` (so `eval.py`/`train.py`
+  don't run as released). `docker/V2X-Graph/patches/0001-temporaldata-inc-pyg2.patch`
+  forwards `*args, **kwargs`; `setup.sh` applies it with `git apply` (idempotent).
+  With it, the official TFD checkpoints reproduce the paper (`docs/RESULTS.md`).
+- **The host has no `git-lfs`, so plain `git status`/`diff` in `repos/V2X-Graph` fails**
+  (`git-lfs: not found`). Use `git -c filter.lfs.process= -c filter.lfs.required=false
+  -c filter.lfs.smudge=cat -c filter.lfs.clean=cat ...`, or run git inside the container.
+- **V2X-Traj: `V2XTrajDataset` reads a `v2x_test/` folder** that the release doesn't
+  have; `process_argoverse` reads it as `ego_df` next to the infrastructure and vehicle
+  views, so `extras/prepare_v2xtraj_layout.sh` links it to `ego-trajectories`. V2X-Traj
+  ships its own prebuilt `map_files/` (different from the merged TFD ones), so set
+  `DATA_ROOT=/workspace/data_staging/v2x-traj` (the compose default points at TFD).
+  History is 40 steps (4 s) + 40 future, not 50 + 50.
+- **The README's V2X-Traj "V2X" minFDE of 0.13 is a typo for 1.13**: the official
+  checkpoint gives 1.126 (`docs/RESULTS.md`).
+- **The released V2X-Traj `ego.ckpt` predates the released code**: it carries
+  `interpretable_graph._motion_embed` (1×128), which the model no longer defines, so
+  `load_from_checkpoint` fails (`Unexpected key(s) in state_dict`). Dropping the key
+  loads it, but it gives 0.96 / 1.70 / 0.20 vs published 0.90 / 1.56 / 0.17. Not a
+  valid reproduction; retrain ego on V2X-Traj. The other five checkpoints load strictly.

@@ -5,7 +5,7 @@
 # this repo, only fetched fresh from the original authors.
 #
 # Usage:
-#   ./setup.sh          # clone + overlay the active repos (QCNet, CMP)
+#   ./setup.sh          # clone + overlay the active repos (QCNet, CMP, V2X-Graph, DAIR-V2X-Seq)
 #   ./setup.sh --all    # also clone repos that are planned but not built yet
 #                        # (V2I_trajectory_prediction - checklist B3)
 #
@@ -16,6 +16,10 @@ cd "$(dirname "$0")"
 declare -A REPOS=(
   ["QCNet"]="https://github.com/ZikangZhou/QCNet.git"
   ["CMP"]="https://github.com/tasl-lab/CMP.git"
+  ["V2X-Graph"]="https://github.com/AIR-THU/V2X-Graph.git"
+  # No image of its own: mounted into v2x-graph for its dataset/map API and map-merge
+  # tool, and the source of the HiVT baseline plugin (checklist B5).
+  ["DAIR-V2X-Seq"]="https://github.com/AIR-THU/DAIR-V2X-Seq.git"
 )
 
 declare -A EXTRA_REPOS=(
@@ -58,6 +62,20 @@ apply_patches() {
     #   echo "[setup] applying docker/<Name>/patches (... - see BUILD_GOTCHAS.md)"
     #   cp "docker/<Name>/patches/<file>" "repos/<Name>/<path>/<file>"
     #   ;;
+    V2X-Graph)
+      # Unified diffs against the pinned upstream commit; idempotent (skips if already applied).
+      # 0001: TemporalData.__inc__ uses the PyG 1.x signature, but requirements pin PyG 2.6.1,
+      #       whose batching passes an extra 'store' arg -> every DataLoader batch fails.
+      local p
+      for p in docker/$name/patches/*.patch; do
+        if git -C "repos/$name" apply --reverse --check "$PWD/$p" 2>/dev/null; then
+          echo "[setup] $p already applied"
+        else
+          echo "[setup] applying $p (see BUILD_GOTCHAS.md, V2X-Graph)"
+          git -C "repos/$name" apply "$PWD/$p"
+        fi
+      done
+      ;;
     *)
       echo "[setup] WARNING: docker/$name/patches exists but setup.sh has no rule for it"
       ;;
