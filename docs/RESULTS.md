@@ -42,3 +42,24 @@ reproduction**; for the benchmark the V2X-Traj ego baseline must be retrained fr
 released code. Association metrics (Precision / Recall): ego 0.525 / 0.506, V2I 0.749 /
 0.757, V2V 0.755 / 0.762, V2X 0.753 / 0.761. Val caches: 2,020 scenarios in
 `/raid/scratch/v2xgraph_data/v2x-traj/v2x_test/val/processed`.
+
+## cu128 port validation (2026-11-16, RTX 5090)
+
+Not benchmark numbers: these check that the `*-cu128` images (torch 2.7.1 + CUDA 12.8,
+the only ones that run on the 5090) compute the same thing as the original images. Same
+checkpoint, same preprocessed data, same seed; only image and card differ.
+
+| Method / checkpoint | Split | Original image, RTX 3090 | cu128 image, RTX 5090 | Max difference |
+| --- | --- | --- | --- | --- |
+| V2X-Graph `v2x-seq-tfd/v2i.ckpt` (commit `b6cf34b`, patches 0001 + 0002) | TFD val | torch 1.12.1+cu116, PL 1.5.2: 1.0464418 / 1.7870295 / 0.2544726 | torch 2.7.1+cu128, PL 1.9.5: 1.0464418 / 1.7870294 / 0.2544726 | 1e-7 (minFDE) |
+| QCNet `QCNet_AV2.ckpt` (official) | AV2 val, 24,988 scenarios | torch 2.0.1+cu118, PyG 2.3.0: minADE₆ 0.720117, minFDE₆ 1.252745, MR₆ 0.157396, brier-minFDE₆ 1.874043, minFDE₁ 4.316225 | torch 2.7.1+cu128, PyG 2.6.1, Python 3.10: identical to 6 decimals | 6e-8 |
+
+Logs: `/raid/scratch/v2xgraph_data/logs/eval/tfd_val_v2i_cu128_gpu1.log`,
+`outputs/qcnet_inference_cu128_gpu1/` (QCNet; the 3090 reference is `outputs/qcnet_inference/`).
+
+Training smoke tests (40 steps + validation + checkpoint, both cards at the same time):
+V2X-Graph TFD V2I, batch 4 — original image on the 3090 and cu128 on the 5090 both
+complete, loss 8.8 → 6.0 on both; QCNet AV2 — cu128 image on the 3090 (batch 2) and on
+the 5090 (batch 4, 9 GiB peak in these 40 steps) both complete. Same seed does **not**
+give the same weights across the two torch versions, so a benchmark row must use one
+image for all its seeds.

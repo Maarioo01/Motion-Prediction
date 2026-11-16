@@ -37,6 +37,10 @@ clone_and_overlay() {
   if [ -f "docker/$name/Dockerfile" ]; then
     echo "[setup] overlaying docker/$name onto repos/$name"
     cp "docker/$name/Dockerfile" "repos/$name/Dockerfile"
+    # CUDA 12.8 variant for the RTX 5090 (compose services <name>-cu128)
+    if [ -f "docker/$name/Dockerfile.cu128" ]; then
+      cp "docker/$name/Dockerfile.cu128" "repos/$name/Dockerfile.cu128"
+    fi
     if [ -f "docker/$name/entrypoint.sh" ]; then
       cp "docker/$name/entrypoint.sh" "repos/$name/entrypoint.sh"
     fi

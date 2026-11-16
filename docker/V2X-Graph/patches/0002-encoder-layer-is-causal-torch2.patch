@@ -1,0 +1,14 @@
+diff --git a/models/node_encoder.py b/models/node_encoder.py
+index 85803bc..a1eb2cf 100644
+--- a/models/node_encoder.py
++++ b/models/node_encoder.py
+@@ -195,7 +195,8 @@ class TemporalEncoderLayer(nn.Module):
+     def forward(self,
+                 src: torch.Tensor,
+                 src_mask: Optional[torch.Tensor] = None,
+-                src_key_padding_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
++                src_key_padding_mask: Optional[torch.Tensor] = None,
++                is_causal: bool = False) -> torch.Tensor:
+         x = src
+         x = x + self._sa_block(self.norm1(x), src_mask, src_key_padding_mask)
+         x = x + self._ff_block(self.norm2(x))

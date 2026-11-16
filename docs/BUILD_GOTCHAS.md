@@ -4,7 +4,8 @@ Real issues hit while getting these 10 repos to build and run, kept here because
 same root causes will very likely recur on any new repo added to this project. See the
 main [README](../README.md) for the "adding a repo" workflow these apply to.
 
-- **GPU1 (the 3090 Ti) is unreliable and disabled by policy** — see the README's "GPU
+- *(History: the 3090 Ti was replaced by an RTX 5090 on 2026-11-16; see "RTX 5090 / cu128 images" at the end.)*
+  **GPU1 (the 3090 Ti) is unreliable and disabled by policy** — see the README's "GPU
   allocation" section for the full story. The infra-relevant part: once GPU1 wedges
   (`nvidia-smi` reports `Unable to determine the device handle: Unknown Error`),
   **every** GPU container launch fails, not just ones requesting GPU1 — confirmed that
@@ -378,3 +379,50 @@ main [README](../README.md) for the "adding a repo" workflow these apply to.
   `load_from_checkpoint` fails (`Unexpected key(s) in state_dict`). Dropping the key
   loads it, but it gives 0.96 / 1.70 / 0.20 vs published 0.90 / 1.56 / 0.17. Not a
   valid reproduction; retrain ego on V2X-Traj. The other five checkpoints load strictly.
+
+## RTX 5090 / cu128 images (added 2026-11-16)
+
+GPU 1 is now an RTX 5090 (Blackwell, `sm_120`, 32 GB). What it took to use it:
+
+- **Driver vanished after a reboot.** `unattended-upgrade` installed kernel 7.0.0-43 but
+  not `linux-modules-nvidia-580-open-7.0.0-43-generic` (the metapackage upgrade also
+  needs the 580.173 → 580.178 userspace upgrade, which it skipped), so the next boot had
+  no NVIDIA modules at all and `nvidia-smi` failed for both cards. Fix: `sudo apt install
+  linux-modules-nvidia-580-open-generic-hwe-24.04 nvidia-driver-580-open`, reboot. Expect
+  it again after future kernel updates. The 50-series needs the *open* modules, ≥ 570.
+- **No pre-2.7 torch build runs on it.** `sm_120` kernels first shipped in torch 2.7.0
+  with CUDA 12.8. All three original images (1.12.1+cu116, 1.13.1+cu117, 2.0.1+cu118)
+  import fine and then fail on the first CUDA op. Hence one extra image per repo:
+  `docker/<Name>/Dockerfile.cu128` → compose service `<name>-cu128` (torch 2.7.1+cu128),
+  which also runs on the 3090. `setup.sh` copies it next to the normal Dockerfile.
+- **`torch.cuda.get_arch_list()` is empty during `docker build`** (no GPU attached), so
+  a build-time `assert 'sm_120' in ...` always fails. Assert `torch.version.cuda` in the
+  Dockerfile and check the arch list at run time (`verify.sh`).
+- **torch ≥ 2.6 defaults `torch.load(weights_only=True)`**, which rejects the pickled
+  PyG caches and old Lightning checkpoints. The cu128 images set
+  `TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1` (our own files only).
+- **torch ≥ 2.7 needs Python ≥ 3.9** → QCNet's cu128 image moves from 3.8 to 3.10, and
+  with it PyG 2.3.0 → 2.6.1 plus `torch_scatter/sparse/cluster` from
+  `data.pyg.org/whl/torch-2.7.0+cu128.html` (`--only-binary :all:` so pip can never fall
+  back to a source build). The PyG 2.3.0-era `.pkl` caches load unchanged.
+- **V2X-Graph on torch 2.x needs two more things.** (1) `nn.TransformerEncoder` now
+  passes `is_causal` to every layer; the repo's custom `TemporalEncoderLayer.forward`
+  does not accept it → patch `0002-encoder-layer-is-causal-torch2.patch` (harmless on
+  torch 1.12, applied for both images). (2) `pytorch_lightning==1.5.2` evaluates fine
+  but cannot train: `The provided lr scheduler "<CosineAnnealingLR>" is invalid` (torch
+  2.x schedulers derive from `LRScheduler`, not `_LRScheduler`) → 1.9.5 in the cu128
+  image only, the last 1.x release, same `Trainer.from_argparse_args` / `gpus=` API.
+- **`pkg_resources` again**: `lightning_fabric` 2.0 (QCNet) imports it; a fresh Python
+  3.10 env ships setuptools ≥ 81 → `setuptools==69.5.1`.
+- **Do not copy upstream's `train.py` loop into a script without
+  `torch.multiprocessing.set_sharing_strategy('file_system')`**: with 6+ DataLoader
+  workers V2X-Graph hits `unable to open shared memory object ... Too many open files`
+  and the run hangs with the GPU memory still allocated.
+- **A killed `docker compose run` leaves its container running.** Stopping the shell
+  that launched it does not stop the container; check `docker ps` and `docker stop` it.
+- **CMP is not ported**: Python 3.7.11, `spconv-cu117`, MTR/OpenCOOD CUDA ops compiled
+  with `TORCH_CUDA_ARCH_LIST=8.6`. It stays 3090-only until D1 needs more.
+- **Validation of a port = same checkpoint, same data, both images.** See
+  `docs/RESULTS.md`, "cu128 port validation". Seeds do not transfer: the same seed gives
+  different initial weights/dropout on torch 1.12 and 2.7 (first training loss 8.785 vs
+  8.844), so never mix the two images among the seeds of one benchmark row.
