@@ -11,7 +11,7 @@ plan documents below before doing any work.
   writes in Spanish. Write code, commits and repo docs in English, except the Spanish plan
   documents in `docs/v2x_plan/`.
 - This repo is a **Docker benchmark bench**: one Docker image per upstream model repo,
-  shared datasets on `/raid`, GPU0 only. Upstream code lives in `repos/` (gitignored,
+  shared datasets on `/raid`, two GPUs (3090 + 5090). Upstream code lives in `repos/` (gitignored,
   recreated by `setup.sh`); this repo tracks only `docker/<Name>/`, `docker-compose.yml`,
   `setup.sh`, `verify.sh` and `docs/`.
 
@@ -43,9 +43,10 @@ Active (keep in `setup.sh` + `docker-compose.yml`):
 
 | Service | Why |
 | --- | --- |
-| QCNet | Base for our own model; to be adapted to V2X-Seq. AV2 checkpoint for sanity checks. |
+| QCNet (+ `qcnet-cu128`) | Base for our own model; to be adapted to V2X-Seq. AV2 checkpoint for sanity checks. |
 | CMP | Only cooperative pipeline in the bench; V2V4Real only; aggregation-fix warm-up. |
-| *to add:* V2X-Graph, V2INet (`V2I_trajectory_prediction`), Co-MTP, HiVT | The V2X baselines for paper 1 (see checklist B2–B5). |
+| V2X-Graph (+ `v2x-graph-cu128`) | First V2X baseline; official checkpoints reproduced on TFD and V2X-Traj (`docs/RESULTS.md`). |
+| *to add:* V2INet (`V2I_trajectory_prediction`), Co-MTP, HiVT | The remaining V2X baselines for paper 1 (see checklist B3–B5). |
 
 Archived (moved to `docker/_archive/<Name>/`, removed from `setup.sh` and
 `docker-compose.yml`; do not build or run them unless Mario asks):
@@ -79,7 +80,12 @@ what is actually on disk.
   Check `docker ps`, `nvidia-smi` and running processes first; a training run (e.g.
   SceneInformer) may still be using a path.
 - Archive configs with `git mv`, never `rm`.
-- **GPU0 only** (`device_ids: ["0"]`). Never request GPU1 or `all` (see README, "GPU allocation").
+- **Two GPUs, one experiment per card** (since 2026-11-16): GPU 0 = RTX 3090 (24 GB),
+  GPU 1 = RTX 5090 (32 GB). Pick the card with `GPU=<n> docker compose run ...`; never
+  `gpus: all`, no multi-GPU training across the two. The 5090 only runs the `*-cu128`
+  services (torch 2.7.1 + CUDA 12.8); the original images and CMP are 3090-only. Check
+  `nvidia-smi` first and do not put a second job on a busy card (see README, "GPU
+  allocation"). Record image + card with every number.
 - Mount datasets read-only; write preprocessing output under `/raid/scratch/<name>_*`, not
   the OS disk.
 - For every reported number record: upstream commit (`git -C repos/<Name> rev-parse HEAD`),

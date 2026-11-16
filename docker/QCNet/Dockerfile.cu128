@@ -1,0 +1,46 @@
+# QCNet, CUDA 12.8 variant - runs on the RTX 5090 (sm_120) and on the 3090.
+# Differences from ./Dockerfile, all forced by torch >= 2.7 (first release with sm_120):
+#   python 3.8 -> 3.10 (torch 2.7 needs >= 3.9), torch 2.0.1+cu118 -> 2.7.1+cu128,
+#   PyG 2.3.0 -> 2.6.1 with the scatter/sparse/cluster wheels built for torch 2.7 + cu128.
+# The original image stays the reference for the validated AV2 numbers (TRAINING_PLAN.md).
+FROM continuumio/miniconda3:24.9.2-0
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential git wget libgl1 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN conda create -y -n qcnet python=3.10 && conda clean -afy
+
+SHELL ["conda", "run", "--no-capture-output", "-n", "qcnet", "/bin/bash", "-c"]
+
+RUN pip install --no-cache-dir \
+    torch==2.7.1+cu128 torchvision==0.22.1+cu128 \
+    --index-url https://download.pytorch.org/whl/cu128 \
+    && echo "torch==2.7.1+cu128" > /tmp/constraints.txt
+
+# Prebuilt wheels only (a source build would silently compile against the wrong CUDA).
+RUN pip install --no-cache-dir -c /tmp/constraints.txt torch_geometric==2.6.1 \
+    && pip install --no-cache-dir --only-binary :all: -c /tmp/constraints.txt \
+       torch_scatter==2.1.2 torch_sparse==0.6.18 torch_cluster==1.6.3 \
+       -f https://data.pyg.org/whl/torch-2.7.0+cu128.html
+
+RUN pip install --no-cache-dir -c /tmp/constraints.txt \
+    pytorch-lightning==2.0.4 \
+    torchmetrics==0.11.4 \
+    numpy==1.24.3 \
+    pandas \
+    tqdm \
+    av2==0.2.1 \
+    setuptools==69.5.1
+# setuptools pin: lightning_fabric 2.0 imports pkg_resources (removed in setuptools >= 81).
+
+RUN python -c "import torch, torch_scatter, torch_cluster, torch_sparse; assert torch.__version__ == '2.7.1+cu128', torch.__version__; assert torch.version.cuda == '12.8'"
+
+# torch >= 2.6 defaults torch.load(weights_only=True); our caches and checkpoints are trusted.
+ENV TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1
+RUN echo "conda activate qcnet" >> /root/.bashrc
+ENV PATH=/opt/conda/envs/qcnet/bin:$PATH
+
+WORKDIR /workspace
+CMD ["/bin/bash"]
