@@ -1,0 +1,48 @@
+# V2X-Graph, CUDA 12.8 variant - runs on the RTX 5090 (sm_120) and on the 3090.
+# Same as ./Dockerfile except torch 1.12.1+cu116 -> 2.7.1+cu128 (first release with
+# sm_120 kernels) and what that forces; see BUILD_GOTCHAS.md, "5090 / cu128 images".
+# The original image stays the reference for reproducing published numbers.
+FROM continuumio/miniconda3:24.9.2-0
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential git git-lfs wget libgl1 libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN conda create -y -n v2xgraph python=3.10 && conda clean -afy
+SHELL ["conda", "run", "--no-capture-output", "-n", "v2xgraph", "/bin/bash", "-c"]
+
+ARG TORCH=2.7.1+cu128
+RUN pip install --no-cache-dir torch==${TORCH} \
+    --extra-index-url https://download.pytorch.org/whl/cu128 \
+    && echo "torch==${TORCH}" > /tmp/constraints.txt
+
+COPY requirements.txt /tmp/requirements.txt
+# pytorch_lightning 1.5.2 -> 1.9.5: 1.5 rejects torch 2.x LR schedulers ("The provided lr
+# scheduler ... is invalid": they no longer derive from _LRScheduler). 1.9.5 is the last
+# 1.x release and still has the API the repo uses (Trainer.from_argparse_args, gpus=).
+RUN grep -vE '^(torch|pytorch_lightning)==' /tmp/requirements.txt > /tmp/req-notorch.txt \
+    && pip install --no-cache-dir -c /tmp/constraints.txt \
+       --extra-index-url https://download.pytorch.org/whl/cu128 \
+       -r /tmp/req-notorch.txt pytorch_lightning==1.9.5 matplotlib setuptools==69.5.1
+
+RUN pip install --no-cache-dir --no-deps \
+    git+https://github.com/argoverse/argoverse-api.git@f886ac54fba9f06f8a7d109eb663c7f501b3aa8e \
+    && pip install --no-cache-dir -c /tmp/constraints.txt \
+       descartes==1.1.0 imageio==2.38.0 omegaconf==2.4.0 colour==0.1.5
+
+RUN pip check || true
+RUN python -c "import torch; assert torch.__version__ == '${TORCH}', torch.__version__; assert torch.version.cuda == '12.8', torch.version.cuda"
+
+# torch >= 2.6 defaults torch.load(weights_only=True); the .pt caches (pickled
+# TemporalData) and Lightning checkpoints are our own trusted files.
+ENV TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1
+ENV PYTHONPATH=/deps/DAIR-V2X-Seq/projects/dataset
+RUN echo "conda activate v2xgraph" >> /root/.bashrc
+ENV PATH=/opt/conda/envs/v2xgraph/bin:$PATH
+
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+WORKDIR /workspace
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["/bin/bash"]

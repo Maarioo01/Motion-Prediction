@@ -34,8 +34,8 @@ Every repo here pins its own, usually incompatible, Python/PyTorch/CUDA combinat
 they range from Python 3.7 to 3.10, CUDA 11.1 to 12.1, and several pull in TensorFlow
 alongside PyTorch. A single shared environment isn't feasible; isolation is the point.
 What's shared instead: this one `docker-compose.yml`, the dataset mounts from `/raid`,
-and GPU0 on this machine (see [GPU allocation](#gpu-allocation) — the second card has
-its own problems).
+and the two GPUs on this machine, one experiment per card (see
+[GPU allocation](#gpu-allocation)).
 
 ## Quick start
 
@@ -137,6 +137,9 @@ build/test process:
 # commands are in docs/TRAINING_PLAN.md ("QCNet: trained from scratch + validated").
 # Inference/eval + plots: qcnet_inference.py (from docker/QCNet/extras/), results in outputs/qcnet_inference/
 
+# Every command below also works with the 5090-capable images: replace `qcnet` / `v2x-graph` by
+# `qcnet-cu128` / `v2x-graph-cu128` (GPU 1 by default, `GPU=0` for the 3090); see "GPU allocation".
+
 # V2X-Graph on V2X-Seq-TFD (data layout: see docs/BUILD_GOTCHAS.md, "V2X-Graph")
 docker compose run --rm v2x-graph bash prepare_tfd_layout.sh
 docker compose run --rm v2x-graph python /deps/DAIR-V2X-Seq/tools/data_converter/maps_merge.py --data_root /workspace/data_staging/tfd
@@ -202,8 +205,8 @@ account for nearly every build failure hit so far.
 4. Add the repo + its clone URL to the `REPOS` array in `setup.sh`.
 5. Add a service block to `docker-compose.yml`, copying an existing one: `build:
    ./repos/<Name>`, `image: motion-prediction/<name>:latest`, the `deploy.resources.
-   reservations.devices` block pinning `device_ids: ["0"]` (see "GPU allocation" below —
-   never `gpus: all`), the right dataset volume mount(s) from `/raid` (read-only), and
+   reservations.devices` block (`deploy: *gpu-3090-only` for an old-CUDA image,
+   `deploy: *gpu-any` for a CUDA ≥ 12.8 one; see "GPU allocation" below — never `gpus: all`), the right dataset volume mount(s) from `/raid` (read-only), and
    `./repos/<Name>:/workspace`. If the repo has its own preprocessing step that writes
    output under the repo (e.g. a `data_staging/` convention used by SceneInformer/
    GameFormer/TrajFlow), also mount scratch space from `/raid` over that specific
@@ -211,6 +214,9 @@ account for nearly every build failure hit so far.
    letting it land on the OS disk — see the "repos/ lives on the OS disk" gotcha in
    `BUILD_GOTCHAS.md` for why this matters.
 6. `./setup.sh && docker compose build <name>`, then iterate on failures.
+   If the upstream pins cannot run on the 5090, also add `docker/<Name>/Dockerfile.cu128`
+   and a `<name>-cu128` service (copy `v2x-graph-cu128`), and validate it against the
+   original image before using it for results.
 7. Add an entry to the `CHECKS` array in `verify.sh` — a quick `python -c "import ...;
    assert torch.cuda.is_available()"` covering the key libraries and, if applicable, the
    compiled extension.
@@ -223,21 +229,46 @@ alongside that result.
 
 ## GPU allocation
 
-**GPU0 (RTX 3090) only, by design.** This machine has a second card (a 3090 Ti,
-GPU index 1) that has repeatedly wedged under load — `nvidia-smi` reports `Unable to
-determine the device handle: Unknown Error` with no process attached, and doesn't
-self-recover reliably. Worse, once it's in that state, `nvidia-container-cli` fails to
-launch *any* GPU container at all (it enumerates every GPU on the system regardless of
-which one you actually request), so a bad GPU1 blocks GPU0 too. Every service in
-`docker-compose.yml` is pinned to `device_ids: ["0"]` explicitly (not `gpus: all`) for
-exactly this reason — don't change this back without a real fix for GPU1's stability
-first, and don't add a service or ad-hoc `docker run` that requests GPU1 or `all`.
+Two cards since 2026-11-16 (the unstable 3090 Ti was replaced by an RTX 5090):
 
-If a container fails to start with `nvidia-container-cli: detection error: nvml error`,
-that's this issue recurring, not a config problem — check `nvidia-smi` for GPU1's
-status before assuming anything else is broken. Recovery is `sudo nvidia-smi -r -i 1`
-(resets only GPU1, not the whole machine, no reboot); if that doesn't clear it, don't
-escalate to a reboot unilaterally if no one has physical access to the machine.
+| `nvidia-smi` index | Card | Memory | Images that run on it |
+| --- | --- | --- | --- |
+| 0 | RTX 3090 | 24 GB | all (`qcnet`, `cmp`, `v2x-graph` and the `*-cu128` ones) |
+| 1 | RTX 5090 | 32 GB | only `*-cu128` (`qcnet-cu128`, `v2x-graph-cu128`) |
+
+**Why two images per repo.** The 5090 needs PyTorch built for CUDA ≥ 12.8 (torch ≥ 2.7);
+the upstream pins (torch 1.12 / 1.13 / 2.0 on CUDA 11.x) cannot run on it. Each ported
+repo therefore has a second image, `docker/<Name>/Dockerfile.cu128` → service
+`<name>-cu128`, with the same code, mounts and data. The original image stays as the
+reference that reproduces the published numbers; the cu128 image is validated against it
+(see [`docs/RESULTS.md`](docs/RESULTS.md), "cu128 port validation"). CMP is not ported
+yet (Python 3.7 + spconv + compiled CUDA ops) and is 3090-only.
+
+**How to pick a card.** One card per container, chosen with the `GPU` variable; never
+`gpus: all` and no multi-GPU training across the two (different speed and memory —
+run one experiment or seed per card instead).
+
+```bash
+docker compose run --rm v2x-graph-cu128          # default for *-cu128: GPU 1 (5090)
+GPU=0 docker compose run --rm v2x-graph-cu128    # same image on the 3090
+docker compose run --rm v2x-graph                # original image: always GPU 0
+./verify.sh                                      # checks every image on every card it supports
+```
+
+Check `nvidia-smi` before launching: a card that already runs a training job should not
+get a second one. For the benchmark, keep one image per experiment family (do not mix
+original and cu128 runs among the seeds of one table row), and record image + card with
+every number.
+
+**Known hardware notes (2026-11-16 load test).** Both cards at 100 % together draw
+~930 W (5090 ≈ 600 W, 3090 ≈ 340 W) and ran stable. The 3090 reaches its thermal limit
+(84–87 °C, fan 100 %) and throttles itself, also when running alone; the 5090 peaks at
+~76 °C. Both slots run at PCIe ×8.
+
+**If `nvidia-smi` fails after a reboot** ("couldn't communicate with the NVIDIA
+driver"): an automatic kernel update arrived without the matching NVIDIA modules. Fix:
+`sudo apt install linux-modules-nvidia-580-open-generic-hwe-24.04 nvidia-driver-580-open`
+and reboot (this happened on 2026-11-16 with kernel 7.0.0-43).
 
 ## Docs
 
