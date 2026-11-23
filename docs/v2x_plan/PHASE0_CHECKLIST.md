@@ -37,7 +37,11 @@ source of *why*; this file is the source of *what is done*.
       *2026-11-10: 9 configs moved with `git mv`; restore notes in
       `docker/_archive/README.md`. Active: qcnet, cmp (both pass `verify.sh`). CMP's OPV2V
       mount removed. Images, `repos/` clones and staging data untouched (A3).*
-- [ ] **B2. Add V2X-Graph** (`AIR-THU/V2X-Graph`, code + checkpoint) as a Docker service.
+- [x] **B2. Add V2X-Graph** (`AIR-THU/V2X-Graph`, code + checkpoint) as a Docker service.
+      *2026-11-12: service `v2x-graph` (Python 3.10, torch 1.12.1+cu116, GPU0), passes
+      `verify.sh`; all 6 checkpoints fetched via LFS. Upstream commit `b6cf34b`,
+      DAIR-V2X-Seq `8a5b4f8`, argoverse-api `f886ac5`. TFD layout/maps/labels/caches in
+      `/raid/scratch/v2xgraph_data`. Build notes in `BUILD_GOTCHAS.md`.*
 - [ ] **B3. Add V2INet** (`xichennn/V2I_trajectory_prediction`, already in `setup.sh --all`).
 - [ ] **B4. Add Co-MTP** (`xiaomiaozhang/Co-MTP`, code only; note its 3 s → 5 s @ 5 Hz
       protocol and its use of the AV's ground-truth future as "plan" — privileged info).
@@ -50,8 +54,15 @@ source of *why*; this file is the source of *what is done*.
 
 - [ ] **C1.** HiVT on V2X-Seq: number obtained vs published (V2X-Graph paper, Table 1:
       1.12 / 1.97 / 0.30 for HiVT + PP-VIC).
-- [ ] **C2.** V2X-Graph checkpoint on V2X-Seq: number obtained vs published (1.05 / 1.79 / 0.25).
+- [x] **C2.** V2X-Graph checkpoint on V2X-Seq: number obtained vs published (1.05 / 1.79 / 0.25).
+      *2026-11-12: reproduced on TFD val — V2I 1.046 / 1.787 / 0.254, ego-only 1.160 /
+      2.021 / 0.303 (published 1.16 / 2.02 / 0.30). Commit `b6cf34b` + one compatibility
+      patch (PyG 2.x `__inc__` signature); details in [`docs/RESULTS.md`](../RESULTS.md).
+      Also V2X-Traj val: V2I / V2V / V2X reproduce (0.80 / 1.29 / 0.14, 0.77 / 1.26 / 0.12,
+      0.71 / 1.13 / 0.10); the released ego checkpoint does not (0.96 / 1.70 / 0.20 vs
+      0.90 / 1.56 / 0.17; it predates the released code) → retrain ego there.*
 - [ ] **C3.** Record for every run: upstream commit hash, config, seed, split, number.
+      *2026-11-12: ledger started in [`docs/RESULTS.md`](../RESULTS.md) (ongoing).*
 
 ## D. Warm-up and side tasks
 
