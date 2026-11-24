@@ -30,6 +30,11 @@ Applies to every number in the paper-1 tables. Rows produced with official check
    each.
 6. **Record** with every number: upstream commit, patches, config and flags, seed,
    split, image, card, log path.
+7. **Two views of TFD val** (decided 2026-11-24): every method is reported on the full
+   official val and on its leakage-free subset, the val clips with no train clip at the
+   same intersection within 60 s (`docs/data_checks/tfd_val_clean60s.txt`; why: the
+   official splits share drives and seconds, see `docs/DATASETS.md`). Same checkpoint,
+   only the evaluated scenarios differ. V2X-Traj has no such subset.
 
 ## V2X-Seq-TFD, val split (test not released)
 
@@ -39,12 +44,14 @@ Applies to every number in the paper-1 tables. Rows produced with official check
 | 2026-11-12 | V2X-Graph (official ckpt) | ego only | **1.160** | **2.021** | **0.303** | 1.16 / 2.02 / 0.30 | `b6cf34b` | 0001 | `v2x-seq-tfd/ego.ckpt` (`76b406977e3e1395`) | same | 2022 | `tfd_val_ego.log` |
 
 | 2026-11-24 | HiVT + PP-VIC (official ckpt, DAIR-V2X-Seq "online") | V2I (rule-based fusion) | **1.264** | **2.344** | **0.354** | 1.26 / 2.34 / 0.35 (DAIR-V2X-Seq benchmark README) | DAIR-V2X-Seq `8a5b4f8` | DAIR 0001–0003 | `hivt_online.ckpt` (`627d2f050ca5e8f5`) | ckpt hparams; `eval.py` defaults (batch 32); `hivt-cu128` image, RTX 5090 | 2022 (fixed in `eval.py`) | `/raid/scratch/hivt_data/logs/eval/tfd_val_online_cu128_gpu1.log` |
+| 2026-11-24 | HiVT (official ckpt, DAIR-V2X-Seq "no cooperation") | ego only | **1.436** | **2.524** | **0.361** | 1.44 / 2.52 / 0.36 (DAIR-V2X-Seq benchmark README) | DAIR-V2X-Seq `8a5b4f8` | DAIR 0001–0003 | `hivt_none.ckpt` (`1cafff37d2eb2220`) | car-only input (`vehicle-trajectories`); `eval.py` defaults; `hivt-cu128`, RTX 3090 | 2022 | `/raid/scratch/hivt_data/logs/eval/tfd_val_none.log` |
+| 2026-11-24 | HiVT (official ckpt, DAIR-V2X-Seq "offline") | ego input, infra-pretrained | **1.392** | **2.227** | **0.317** | 1.39 / 2.23 / 0.32 (DAIR-V2X-Seq benchmark README) | DAIR-V2X-Seq `8a5b4f8` | DAIR 0001–0003 | `hivt_offline.ckpt` (`d627bc2668a8116e`) | same | 2022 | `/raid/scratch/hivt_data/logs/eval/tfd_val_offline.log` |
 
 Both reproduce the paper to the reported precision (C2).
 HiVT (C1): the official "online" checkpoint reproduces the DAIR-V2X-Seq benchmark number
-exactly. Input: `fusion_for_prediction.py` + `tfd_converter.py` (README, "HiVT"), then
-HiVT's own processing. The "no cooperation" (1.44 / 2.52 / 0.36) and "offline"
-(1.39 / 2.23 / 0.32) checkpoints read the car-only files; their evaluation is pending. Preprocessing: `prepare_tfd_layout.sh`
+exactly, and so do the "no cooperation" and "offline" checkpoints (car-only input).
+Input for "online": `fusion_for_prediction.py` + `tfd_converter.py` (README, "HiVT"), then
+HiVT's own processing. Preprocessing: `prepare_tfd_layout.sh`
 → `maps_merge.py` (DAIR-V2X-Seq `8a5b4f8`) → `generate_label.py` → `preprocess_parallel.py`
 (`PYTHONHASHSEED=0`; output-identical to upstream `preprocess.py`, see BUILD_GOTCHAS.md).
 Val caches: 10,229 scenarios in `/raid/scratch/v2xgraph_data/tfd/cooperative-vehicle-infrastructure/v2x_fusion/val/processed`.
@@ -126,4 +133,41 @@ at most 5.5e-6, against 2.8e-6 between two runs of the unpatched code (atomic ad
 
 **After the fix the disk becomes the limit.** The DataLoader alone reads 7.4 batches/s
 (29.6 scenarios/s) from `/raid` with 12 workers, below the 5090's 11.2, and two runs on the
-same disk would share it. TFD train graph files: 84 GB (val 34 GB; V2X-Traj 25 + 8.1 GB).
+same disk would share it. Real `train.py` on the 5090 with the fix: 3.54 steps/s from the
+HDD. The train graph files were therefore moved to the NVMe (TFD 84 GB, V2X-Traj 25 GB;
+copies verified by file count, total bytes and 300 random md5 each; HDD originals kept as
+`processed.hdd_backup`). From the NVMe, 5090, real `train.py` (first minutes of an epoch):
+
+| Dataset | Steps/s | Epoch | 64 epochs (training only) |
+| --- | --- | --- | --- |
+| TFD (6,394 steps) | 9.27 | ~11.5 min | ~12.3 h |
+| V2X-Traj (1,516 steps) | 7.55 | ~3.4 min | ~3.6 h |
+
+Down from ~82 h per TFD run on the 5090 before the fix.
+
+## TFD val: full vs leakage-free subset (official checkpoints, 2026-11-24)
+
+Protocol point 7. "Clean" = the 1,122 val scenarios with no train clip at the same
+intersection within 60 s (`docs/data_checks/tfd_val_clean60s.txt`); "rest" = the other
+9,107. Same checkpoints and settings as the rows above; `*-cu128` images. The size-weighted
+mean of clean and rest equals the full-val number (checked).
+
+| Method | Setting | Full val (10,229) | Rest (9,107) | Clean (1,122) | Clean vs rest, minFDE |
+| --- | --- | --- | --- | --- | --- |
+| V2X-Graph | V2I | 1.046 / 1.787 / 0.254 | 1.041 / 1.774 / 0.253 | 1.099 / 1.894 / 0.261 | +6.8 % |
+| V2X-Graph | ego | 1.160 / 2.021 / 0.303 | 1.157 / 2.015 / 0.303 | 1.181 / 2.072 / 0.308 | +2.8 % |
+| HiVT + PP-VIC | online (V2I, rule-based fusion) | 1.264 / 2.344 / 0.354 | 1.247 / 2.308 / 0.352 | 1.401 / 2.635 / 0.369 | +14.2 % |
+| HiVT | no cooperation | 1.436 / 2.524 / 0.361 | 1.432 / 2.495 / 0.358 | 1.471 / 2.759 / 0.384 | +10.6 % |
+| HiVT | offline (infra-pretrained, car-only input) | 1.392 / 2.227 / 0.317 | 1.391 / 2.210 / 0.315 | 1.397 / 2.361 / 0.331 | +6.8 % |
+
+Reading (preliminary): every model is worse on the clean clips; the ranking of the five
+does not change, but the gaps do. Cooperation helps less on clean clips (minFDE gain over
+the same method without infrastructure: V2X-Graph rest −12.0 % / clean −8.6 %; HiVT
+online vs no cooperation rest −7.5 % / clean −4.5 %), and HiVT's rule-based fusion loses
+most (+14 %), so on clean clips HiVT "offline" beats "online" by 10 % instead of 4 %. Two caveats before this becomes a claim: (1) with 1,122 scenarios the standard
+error of minFDE is a few centimetres, so differences under ~0.1 m need a per-scenario
+paired test (eval.py only prints means; dump per-scenario errors next); (2) "clean" clips
+differ from the rest in more than leakage (rarer times and intersections), so a
+day-held-out retrain is the clean causal test.
+
+Logs: `/raid/scratch/v2xgraph_data/logs/eval/subsets/`, `/raid/scratch/hivt_data/logs/eval/`.

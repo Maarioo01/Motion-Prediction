@@ -73,6 +73,9 @@ services:
       - /raid/datasets/V2X-Seq-TFD/V2X-Seq-TFD:/data/v2x-seq-tfd:ro
       - /raid/datasets/V2X-Traj/v2x-traj:/data/v2x-traj:ro
       - /raid/scratch/v2xgraph_data:/workspace/data_staging
+      # Training graph files live on the NVMe (the HDD cannot feed training once patch 0004 is in);
+      # the train/processed folders under /raid are symlinks to this same absolute path.
+      - /home/baco/nvme_cache:/home/baco/nvme_cache:ro
     working_dir: /workspace
     stdin_open: true
     tty: true

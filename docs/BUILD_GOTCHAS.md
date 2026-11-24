@@ -390,6 +390,12 @@ main [README](../README.md) for the "adding a repo" workflow these apply to.
   within float noise): 3090 1.24 → 5.91 steps/s, 5090 1.39 → 11.17 (`docs/RESULTS.md`,
   "Training speed"). Before it, the 5090 was only 13 % faster than the 3090 because the
   slow kernel does not scale with GPU size.
+- **With 0004 the HDD cannot feed training** (5090: 3.54 steps/s from `/raid`, GPU mostly
+  idle). The train graph files are therefore on the NVMe: `/home/baco/nvme_cache/v2xgraph/
+  {tfd,v2xtraj}_train_processed`, and `.../train/processed` under `/raid/scratch/
+  v2xgraph_data` are symlinks to them (the HDD originals are kept as `processed.hdd_backup`).
+  The compose file mounts `/home/baco/nvme_cache` at the same path so the symlinks resolve
+  inside containers. Val graph files stay on `/raid` (read once per evaluation).
 - **The README's V2X-Traj "V2X" minFDE of 0.13 is a typo for 1.13**: the official
   checkpoint gives 1.126 (`docs/RESULTS.md`).
 - **The released V2X-Traj `ego.ckpt` predates the released code**: it carries
