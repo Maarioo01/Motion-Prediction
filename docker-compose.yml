@@ -87,6 +87,27 @@ services:
     container_name: v2x-graph-cu128
     deploy: *gpu-any
 
+  # HiVT baseline of the V2X-Seq authors (DAIR-V2X-Seq projects/HiVT_plugin, checklist B5/C1).
+  # V2X-Graph is built on HiVT and needs the same stack (torch, PyG, PL 1.x, argoverse-api),
+  # so this reuses the v2x-graph cu128 image: build v2x-graph-cu128 first. Runs on either card.
+  hivt-cu128:
+    image: motion-prediction/v2x-graph:cu128
+    container_name: hivt-cu128
+    deploy: *gpu-any
+    ipc: host
+    ulimits: *nofile
+    environment:
+      - DATA_ROOT=/workspace/data_staging/tfd      # dair_map_api reads $DATA_ROOT/map_files
+      - PYTHONPATH=/workspace/projects/dataset
+    volumes:
+      - ./repos/DAIR-V2X-Seq:/workspace
+      - ./docker/V2X-Graph/extras:/bench-extras:ro  # prepare_tfd_layout.sh (same TFD layout)
+      - /raid/datasets/V2X-Seq-TFD/V2X-Seq-TFD:/data/v2x-seq-tfd:ro
+      - /raid/scratch/hivt_data:/workspace/data_staging
+    working_dir: /workspace/projects/HiVT_plugin
+    stdin_open: true
+    tty: true
+
   # Same code, mounts and data as qcnet; torch 2.7.1+cu128 (docker/QCNet/Dockerfile.cu128).
   qcnet-cu128:
     <<: *qcnet

@@ -36,6 +36,11 @@ plan documents below before doing any work.
    robustness, cost, and per-difficulty/occlusion analysis.
 4. Default model family for our own work: **relative / query-centric** (HiVT/QCNet style),
    propose → refine decoder, calibrated mode probabilities.
+5. **Benchmark training protocol (2026-11-24)**: retrain every method, 3 seeds, each
+   method's published schedule, report the **last** checkpoint (never pick on val: val is
+   our test set), `*-cu128` image for every paper-1 run, published effective batch kept via
+   gradient accumulation. Official checkpoints are sanity checks only. Full text:
+   [`docs/RESULTS.md`](docs/RESULTS.md), "Protocol".
 
 ## Methods
 

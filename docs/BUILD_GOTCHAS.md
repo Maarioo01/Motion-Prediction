@@ -369,9 +369,15 @@ main [README](../README.md) for the "adding a repo" workflow these apply to.
 - **V2X-Traj: `V2XTrajDataset` reads a `v2x_test/` folder** that the release doesn't
   have; `process_argoverse` reads it as `ego_df` next to the infrastructure and vehicle
   views, so `extras/prepare_v2xtraj_layout.sh` links it to `ego-trajectories`. V2X-Traj
-  ships its own prebuilt `map_files/` (different from the merged TFD ones), so set
+  ships its own prebuilt `map_files/` (byte-different from our merged TFD ones but the
+  same 57,643 lanes with identical content; only the key order differs), so set
   `DATA_ROOT=/workspace/data_staging/v2x-traj` (the compose default points at TFD).
   History is 40 steps (4 s) + 40 future, not 50 + 50.
+- **Upstream `train.py` hard-codes `seed_everything(2022)` and keeps only the top-5
+  checkpoints by val minFDE.** The benchmark needs several seeds and the last checkpoint
+  (no selection on val, see `docs/RESULTS.md`, "Protocol") → patch
+  `0003-train-seed-arg-save-last.patch` adds `--seed` (default 2022, so upstream
+  behaviour is unchanged) and `save_last=True` (writes `checkpoints/last.ckpt`).
 - **The README's V2X-Traj "V2X" minFDE of 0.13 is a typo for 1.13**: the official
   checkpoint gives 1.126 (`docs/RESULTS.md`).
 - **The released V2X-Traj `ego.ckpt` predates the released code**: it carries
@@ -426,3 +432,34 @@ GPU 1 is now an RTX 5090 (Blackwell, `sm_120`, 32 GB). What it took to use it:
   `docs/RESULTS.md`, "cu128 port validation". Seeds do not transfer: the same seed gives
   different initial weights/dropout on torch 1.12 and 2.7 (first training loss 8.785 vs
   8.844), so never mix the two images among the seeds of one benchmark row.
+
+## HiVT on V2X-Seq-TFD (added 2026-11-24, checklist B5/C1)
+
+Code: `AIR-THU/DAIR-V2X-Seq` `projects/HiVT_plugin` (the V2X-Seq authors' own baseline);
+service `hivt-cu128`, which reuses the `motion-prediction/v2x-graph:cu128` image.
+
+- **No new image.** V2X-Graph is built on HiVT and needs the same stack (torch, PyG 2.6.1,
+  PL 1.x, argoverse-api, `dair_map_api`), so a third 13 GB image would be a copy. Build
+  `v2x-graph-cu128` first.
+- **Same two torch-2 / PyG-2 fixes as V2X-Graph**, in one patch
+  (`docker/DAIR-V2X-Seq/patches/0001-hivt-plugin-pyg2-torch2.patch`): the PyG 1.x
+  `TemporalData.__inc__` signature, and `TemporalEncoderLayer.forward` without
+  `is_causal`. Upstream pins torch 1.8 + PyG 1.7.2.
+- **`tools/data_converter/tfd_converter.py` uses `DataFrame.append`**, removed in pandas
+  2.0. The cu128 image has pandas 1.4.4, so it runs; do not upgrade pandas there.
+- **The cooperative ("online", PP-VIC) input is preprocessing, not learning.**
+  `tools/trajectory_fusion/fusion_for_prediction.py` fuses both views into one track per
+  object with the same IoU > 0.3 + Hungarian rule that V2X-Graph uses for its labels
+  (V2X-Graph's `traj_match_labels/` is a modified copy of this tool); then
+  `tfd_converter.py` keeps the fused history and takes the future from the car's own
+  tracks. Output: `<root>/cooperative-vehicle-infrastructure/{tfd_fusion,fusion_for_prediction}`.
+- **HiVT's own per-scenario processing runs on first use** (`TFDDataset.process`, serial
+  loop) and writes `<root>/<split>/processed/*.pt`.
+- **Official checkpoints are on Google Drive**, linked from
+  `docs/benchmarks/vic-traj-forecasting/README.md` of DAIR-V2X-Seq (no cooperation,
+  online, offline). On 2026-11-24 every `gdown` attempt failed with Drive's "Too many
+  users have viewed or downloaded this file recently" quota, like the TFD zips (A1).
+  Put them in `/raid/scratch/hivt_data/checkpoints_official/`.
+- **Three different published HiVT numbers on the same val split**: V2X-Seq paper Table 3,
+  the DAIR-V2X-Seq README (with checkpoints) and V2X-Graph Table 1 (reportedly a
+  re-implementation with hidden size 128; the plugin's default `embed_dim` is 64).

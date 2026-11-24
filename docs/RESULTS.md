@@ -8,6 +8,29 @@ Metrics: minADE / minFDE / MR at K = 6, in metres, as computed by each repo's ow
 `eval.py`. Horizon: V2X-Seq-TFD 5 s (50 steps at 10 Hz) after 5 s of history; V2X-Traj
 4 s (40 steps) after 4 s.
 
+## Protocol for benchmark runs (decided 2026-11-24)
+
+Applies to every number in the paper-1 tables. Rows produced with official checkpoints
+(below) are sanity checks of our setup, not benchmark rows.
+
+1. **No test set is released, so the official val split is our test set.** Nothing is
+   chosen on it: no checkpoint selection, no early stopping, no hyperparameter search.
+2. **Checkpoint = the last one** of a fixed schedule: each method's published number of
+   epochs and learning-rate schedule. Upstream "best val" checkpoints are ignored. If a
+   method turns out unstable at the end of training, hold out part of train for selection
+   instead (decide per method, record it).
+3. **Retrain every method, 3 seeds** (report mean and spread). V2X-Graph: `--seed` from
+   patch 0003.
+4. **One image per row, the `*-cu128` one**, so any run can go on either card. The same
+   seed gives different weights in the two images, so seeds of one row never mix images.
+5. **Same effective batch as published.** On one card, gradient accumulation makes up
+   for the paper's GPU count (V2X-Graph: 4 GPUs × 1 × 16 → 1 GPU × 4 × 16 = 64 scenarios
+   per update). Note: V2X-Graph averages its loss over all agents in a batch, so 4
+   scenarios on one card weight crowded scenes slightly differently than 4 cards with 1
+   each.
+6. **Record** with every number: upstream commit, patches, config and flags, seed,
+   split, image, card, log path.
+
 ## V2X-Seq-TFD, val split (test not released)
 
 | Date | Method | Cooperation | minADE | minFDE | MR | Published | Upstream commit | Patches | Checkpoint (sha256) | Config | Seed | Log |
