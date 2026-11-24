@@ -58,6 +58,28 @@ dataset terms of use are on <https://thudair.baai.ac.cn/index> (the code repos a
   blocked by Drive's per-file quota ("Too many users have viewed or downloaded this file
   recently"); retry later, or add the folder to your own Drive and download from there.
 
+### How the official train / val splits were made (checked 2026-11-24)
+
+The papers only give ratios (V2X-Seq 5 : 2 : 3, method not stated in the main text;
+V2X-Traj "randomly split" 6,062 / 2,020 / 2,020). From the data (first row of every
+scenario, plus a point-by-point check of 400 random val targets per dataset against the
+training files): clips were cut from continuous drives with overlapping windows and then
+assigned to splits at random, so val shares days, intersections and often the same seconds
+with train.
+
+| | V2X-Seq-TFD | V2X-Traj |
+| --- | --- | --- |
+| Recording period | 2021-12-09 – 2022-12-03, 296 days (279 in both splits) | 2021-10-14 – 2022-11-15, 29 days (all in both) |
+| Val clips with a train clip of the same drive overlapping in time | 62 % (typical start gap 5.0 s) | 100 % (typical gap 0.0 s) |
+| Val target's whole future present point for point in a training file | 37 % (mostly as the history of the next 5 s clip) | 91 % |
+| …as the target of that training scenario | 7.5 % | 80 % |
+
+Consequences for paper 1: the official val stays our test set (comparability), but it
+does not measure generalisation to unseen traffic, and V2X-Traj val is mostly
+near-duplicates of training scenarios. Any validation split we carve from train must
+hold out whole recording days, never random clips. A leakage-free TFD view is the val clips
+with no train clip within 60 s (11 %, about 1,100 scenarios). Scripts: `docs/data_checks/`.
+
 ## OPV2V + V2V4Real (OPV2V deleted 2026-11-11; history)
 
 Needed by CMP, and directly relevant to the V2X research direction (see

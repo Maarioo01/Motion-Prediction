@@ -471,9 +471,13 @@ service `hivt-cu128`, which reuses the `motion-prediction/v2x-graph:cu128` image
   loop) and writes `<root>/<split>/processed/*.pt`.
 - **Official checkpoints are on Google Drive**, linked from
   `docs/benchmarks/vic-traj-forecasting/README.md` of DAIR-V2X-Seq (no cooperation,
-  online, offline). On 2026-11-24 every `gdown` attempt failed with Drive's "Too many
-  users have viewed or downloaded this file recently" quota, like the TFD zips (A1).
-  Put them in `/raid/scratch/hivt_data/checkpoints_official/`.
+  online, offline). On 2026-11-24 the first `gdown` attempts failed with Drive's "Too many
+  users have viewed or downloaded this file recently" quota, like the TFD zips (A1); a
+  retry a few hours later worked. They are in `/raid/scratch/hivt_data/checkpoints_official/`.
+- **`datasets/tfd_dataset.py` cannot process data as released**: `torch.zeros(..., dtype =
+  x.type)` passes a method, not a dtype (fails on any torch) → patch
+  `0003-hivt-zeros-dtype.patch` (`x.dtype`). Processing is serial, ~3 scenarios/s
+  (TFD val ~1 h, train ~2.2 h).
 - **Three different published HiVT numbers on the same val split**: V2X-Seq paper Table 3,
   the DAIR-V2X-Seq README (with checkpoints) and V2X-Graph Table 1 (reportedly a
   re-implementation with hidden size 128; the plugin's default `embed_dim` is 64).

@@ -1,0 +1,13 @@
+diff --git a/projects/HiVT_plugin/datasets/tfd_dataset.py b/projects/HiVT_plugin/datasets/tfd_dataset.py
+index 8e52eb2..9abf72e 100644
+--- a/projects/HiVT_plugin/datasets/tfd_dataset.py
++++ b/projects/HiVT_plugin/datasets/tfd_dataset.py
+@@ -178,7 +178,7 @@ def process_argoverse(split: str,
+     
+     x[:, 50:] = x[:, 50:] - x[:, 49].unsqueeze(-2)
+     x[:, 1: 50] = torch.where((padding_mask[:, : 49] | padding_mask[:, 1: 50]).unsqueeze(-1),
+-                              torch.zeros(num_nodes, 49, 2, dtype = x.type),
++                              torch.zeros(num_nodes, 49, 2, dtype = x.dtype),
+                               x[:, 1: 50] - x[:, : 49]) # difference
+     x[:, 0] = torch.zeros(num_nodes, 2)
+ 
