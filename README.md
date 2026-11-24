@@ -147,6 +147,19 @@ docker compose run --rm v2x-graph bash -c "cd traj_match_labels && python genera
 # Not upstream preprocess.py (serial, ~35 h, OOM-killed at 62 GB): same per-scenario code, 6 workers, ~1 scen/s
 for s in val train; do docker compose run --rm -e PYTHONHASHSEED=0 v2x-graph python preprocess_parallel.py \
   --root /workspace/data_staging/tfd/cooperative-vehicle-infrastructure --split $s --workers 6; done
+# Train one benchmark row on one card (protocol in docs/RESULTS.md): 64 scenarios per update, last.ckpt is reported
+GPU=1 docker compose run --rm v2x-graph-cu128 python train.py --dataset V2X-Seq-TFD --cooperation v2i \
+  --root /workspace/data_staging/tfd/cooperative-vehicle-infrastructure --gpus 1 --train_batch_size 4 \
+  --accumulate_grad_batches 16 --num_workers 12 --seed 2022 --default_root_dir /workspace/data_staging/runs/tfd_v2i_s2022
+
+# HiVT, official V2X-Seq baseline (DAIR-V2X-Seq projects/HiVT_plugin; reuses the v2x-graph cu128 image).
+# Its cooperative ("online", PP-VIC) input is a rule-based fusion of both views into one track per object.
+docker compose run --rm hivt-cu128 bash /bench-extras/prepare_tfd_layout.sh /data/v2x-seq-tfd /workspace/data_staging/tfd
+cp /raid/scratch/v2xgraph_data/tfd/map_files/* /raid/scratch/hivt_data/tfd/map_files/   # same maps_merge.py output
+for s in val train; do docker compose run --rm hivt-cu128 bash -c "\
+  python /workspace/tools/trajectory_fusion/fusion_for_prediction.py --data_root /workspace/data_staging/tfd --split $s && \
+  python /workspace/tools/data_converter/tfd_converter.py --data_root /workspace/data_staging/tfd --split $s"; done
+docker compose run --rm hivt-cu128 python eval.py --root /workspace/data_staging/tfd/cooperative-vehicle-infrastructure/fusion_for_prediction --ckpt_path <ckpt>
 
 # V2X-Graph on V2X-Traj (ships in the expected layout with prebuilt map_files; no map merge)
 docker compose run --rm v2x-graph bash prepare_v2xtraj_layout.sh
@@ -234,7 +247,7 @@ Two cards since 2026-11-16 (the unstable 3090 Ti was replaced by an RTX 5090):
 | `nvidia-smi` index | Card | Memory | Images that run on it |
 | --- | --- | --- | --- |
 | 0 | RTX 3090 | 24 GB | all (`qcnet`, `cmp`, `v2x-graph` and the `*-cu128` ones) |
-| 1 | RTX 5090 | 32 GB | only `*-cu128` (`qcnet-cu128`, `v2x-graph-cu128`) |
+| 1 | RTX 5090 | 32 GB | only `*-cu128` (`qcnet-cu128`, `v2x-graph-cu128`, `hivt-cu128`) |
 
 **Why two images per repo.** The 5090 needs PyTorch built for CUDA ≥ 12.8 (torch ≥ 2.7);
 the upstream pins (torch 1.12 / 1.13 / 2.0 on CUDA 11.x) cannot run on it. Each ported

@@ -1,0 +1,36 @@
+diff --git a/train.py b/train.py
+index c6f4fe6..ce8f26d 100644
+--- a/train.py
++++ b/train.py
+@@ -20,9 +20,8 @@ SUPPORTED_COOPERATION = {
+ 
+ 
+ if __name__ == '__main__':
+-    pl.seed_everything(2022)
+-
+     parser = ArgumentParser()
++    parser.add_argument('--seed', type=int, default=2022)
+     parser.add_argument('--root', type=str, default='')
+     parser.add_argument("--dataset", type=str, required=True) #V2X-Seq-TFD; V2X-Traj
+     parser.add_argument("--cooperation", type=str, required=True) # ego; v2i; v2v; v2x
+@@ -41,7 +40,8 @@ if __name__ == '__main__':
+     parser.add_argument('--accumulate_grad_batches', type=int, default=16)
+     parser = V2XGraph.add_model_specific_args(parser)
+     args = parser.parse_args()
+-    
++    pl.seed_everything(args.seed)
++
+     if args.dataset == 'V2X-Seq-TFD':
+         datamodule = TFDDataModule.from_argparse_args(args)
+         args.historical_steps = 50
+@@ -56,7 +56,9 @@ if __name__ == '__main__':
+     
+     datamodule.setup()
+     model_checkpoint = ModelCheckpoint(monitor=args.monitor, save_top_k=args.save_top_k, mode='min')
+-    trainer = pl.Trainer.from_argparse_args(args, accelerator='gpu', callbacks=[model_checkpoint])
++    # last.ckpt after every training epoch (the monitored callback only saves when validation runs)
++    last_checkpoint = ModelCheckpoint(save_top_k=0, save_last=True, save_on_train_epoch_end=True)
++    trainer = pl.Trainer.from_argparse_args(args, accelerator='gpu', callbacks=[model_checkpoint, last_checkpoint])
+     model = V2XGraph(**vars(args))
+ 
+     trainer.fit(model, datamodule)

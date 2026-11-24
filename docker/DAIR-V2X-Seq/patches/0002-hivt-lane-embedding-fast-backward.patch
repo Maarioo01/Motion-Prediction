@@ -1,0 +1,25 @@
+--- a/projects/HiVT_plugin/models/local_encoder.py
++++ b/projects/HiVT_plugin/models/local_encoder.py
+@@ -363,16 +363,16 @@
+                 size_i: Optional[int]) -> torch.Tensor:
+         if rotate_mat is None:
+             x_j = self.lane_embed([x_j, edge_attr],
+-                                  [self.is_intersection_embed[is_intersections_j],
+-                                   self.turn_direction_embed[turn_directions_j],
+-                                   self.traffic_control_embed[traffic_controls_j]])
++                                  [F.embedding(is_intersections_j.long(), self.is_intersection_embed),
++                                   F.embedding(turn_directions_j.long(), self.turn_direction_embed),
++                                   F.embedding(traffic_controls_j.long(), self.traffic_control_embed)])
+         else:
+             rotate_mat = rotate_mat[edge_index[1]]
+             x_j = self.lane_embed([torch.bmm(x_j.unsqueeze(-2), rotate_mat).squeeze(-2),
+                                    torch.bmm(edge_attr.unsqueeze(-2), rotate_mat).squeeze(-2)],
+-                                  [self.is_intersection_embed[is_intersections_j],
+-                                   self.turn_direction_embed[turn_directions_j],
+-                                   self.traffic_control_embed[traffic_controls_j]])
++                                  [F.embedding(is_intersections_j.long(), self.is_intersection_embed),
++                                   F.embedding(turn_directions_j.long(), self.turn_direction_embed),
++                                   F.embedding(traffic_controls_j.long(), self.traffic_control_embed)])
+         query = self.lin_q(x_i).view(-1, self.num_heads, self.embed_dim // self.num_heads)
+         key = self.lin_k(x_j).view(-1, self.num_heads, self.embed_dim // self.num_heads)
+         value = self.lin_v(x_j).view(-1, self.num_heads, self.embed_dim // self.num_heads)

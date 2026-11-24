@@ -45,15 +45,33 @@ source of *why*; this file is the source of *what is done*.
 - [ ] **B3. Add V2INet** (`xichennn/V2I_trajectory_prediction`, already in `setup.sh --all`).
 - [ ] **B4. Add Co-MTP** (`xiaomiaozhang/Co-MTP`, code only; note its 3 s → 5 s @ 5 Hz
       protocol and its use of the AV's ground-truth future as "plan" — privileged info).
-- [ ] **B5. HiVT** baseline (`ZikangZhou/HiVT`) — check whether V2X-Seq's own baseline code
+- [x] **B5. HiVT** baseline (`ZikangZhou/HiVT`) — check whether V2X-Seq's own baseline code
       already provides it before adding a separate service.
       *2026-11-10: it does — `AIR-THU/DAIR-V2X-Seq` `projects/HiVT_plugin` (PP-VIC eval
       scripts); no checkpoint in the repo.*
+      *2026-11-24: the repo's `docs/benchmarks/vic-traj-forecasting/README.md` links three
+      official HiVT checkpoints on Google Drive (no cooperation 1.44 / 2.52 / 0.36, online
+      PP-VIC 1.26 / 2.34 / 0.35, offline 1.39 / 2.23 / 0.32). First attempts hit Drive's
+      "too many downloads" quota; downloaded the same evening to
+      `/raid/scratch/hivt_data/checkpoints_official/`. Service `hivt-cu128` (v2x-graph cu128
+      image), DAIR-V2X-Seq patches 0001–0003. HiVT here needs its own pipeline:
+      rule-based fusion (`tools/trajectory_fusion/fusion_for_prediction.py`) +
+      `tools/data_converter/tfd_converter.py`, then HiVT's Argoverse-style processing.
+      Plan (decision 7 of the 2026-11-18 review): build it directly as a cu128 image.*
 
 ## C. Reproduction (the gate)
 
-- [ ] **C1.** HiVT on V2X-Seq: number obtained vs published (V2X-Graph paper, Table 1:
+- [x] **C1.** HiVT on V2X-Seq: number obtained vs published (V2X-Graph paper, Table 1:
       1.12 / 1.97 / 0.30 for HiVT + PP-VIC).
+      *2026-11-24: reproduced — official DAIR-V2X-Seq "online" (PP-VIC) checkpoint on TFD
+      val: 1.264 / 2.344 / 0.354 vs published 1.26 / 2.34 / 0.35 (`docs/RESULTS.md`).
+      With C2 this meets the Phase 0 gate (two published V2X-Seq numbers within ±5 %).
+      The V2X-Graph Table 1 number has no checkpoint; it becomes a paper-1 data point.*
+      *2026-11-24: three different published HiVT + PP-VIC numbers on the same val split:
+      V2X-Seq paper Table 3 1.27 / 2.36 / 0.35, DAIR-V2X-Seq repo 1.26 / 2.34 / 0.35 (with
+      checkpoint), V2X-Graph Table 1 1.12 / 1.97 / 0.30 (no checkpoint). Gate target: the
+      repo number, by evaluating its released checkpoint (cheap, verifiable); the V2X-Graph
+      number needs a retrain and becomes a paper-1 data point.*
 - [x] **C2.** V2X-Graph checkpoint on V2X-Seq: number obtained vs published (1.05 / 1.79 / 0.25).
       *2026-11-12: reproduced on TFD val — V2I 1.046 / 1.787 / 0.254, ego-only 1.160 /
       2.021 / 0.303 (published 1.16 / 2.02 / 0.30). Commit `b6cf34b` + one compatibility

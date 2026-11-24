@@ -8,6 +8,34 @@ Metrics: minADE / minFDE / MR at K = 6, in metres, as computed by each repo's ow
 `eval.py`. Horizon: V2X-Seq-TFD 5 s (50 steps at 10 Hz) after 5 s of history; V2X-Traj
 4 s (40 steps) after 4 s.
 
+## Protocol for benchmark runs (decided 2026-11-24)
+
+Applies to every number in the paper-1 tables. Rows produced with official checkpoints
+(below) are sanity checks of our setup, not benchmark rows.
+
+1. **No test set is released, so the official val split is our test set.** Nothing is
+   chosen on it: no checkpoint selection, no early stopping, no hyperparameter search.
+2. **Checkpoint = the last one** of a fixed schedule: each method's published number of
+   epochs and learning-rate schedule. Upstream "best val" checkpoints are ignored. If a
+   method turns out unstable at the end of training, hold out part of train for selection
+   instead (decide per method, record it).
+3. **Retrain every method, 3 seeds** (report mean and spread). V2X-Graph: `--seed` from
+   patch 0003.
+4. **One image per row, the `*-cu128` one**, so any run can go on either card. The same
+   seed gives different weights in the two images, so seeds of one row never mix images.
+5. **Same effective batch as published.** On one card, gradient accumulation makes up
+   for the paper's GPU count (V2X-Graph: 4 GPUs × 1 × 16 → 1 GPU × 4 × 16 = 64 scenarios
+   per update). Note: V2X-Graph averages its loss over all agents in a batch, so 4
+   scenarios on one card weight crowded scenes slightly differently than 4 cards with 1
+   each.
+6. **Record** with every number: upstream commit, patches, config and flags, seed,
+   split, image, card, log path.
+7. **Two views of TFD val** (decided 2026-11-24): every method is reported on the full
+   official val and on its leakage-free subset, the val clips with no train clip at the
+   same intersection within 60 s (`docs/data_checks/tfd_val_clean60s.txt`; why: the
+   official splits share drives and seconds, see `docs/DATASETS.md`). Same checkpoint,
+   only the evaluated scenarios differ. V2X-Traj has no such subset.
+
 ## V2X-Seq-TFD, val split (test not released)
 
 | Date | Method | Cooperation | minADE | minFDE | MR | Published | Upstream commit | Patches | Checkpoint (sha256) | Config | Seed | Log |
@@ -15,7 +43,15 @@ Metrics: minADE / minFDE / MR at K = 6, in metres, as computed by each repo's ow
 | 2026-11-12 | V2X-Graph (official ckpt) | V2I | **1.046** | **1.787** | **0.254** | 1.05 / 1.79 / 0.25 | `b6cf34b` | 0001 (PyG `__inc__`) | `v2x-seq-tfd/v2i.ckpt` (`af78366b60243ada`) | ckpt hparams; `eval.py --batch_size 8` | 2022 (fixed in `eval.py`) | `tfd_val_v2i.log` |
 | 2026-11-12 | V2X-Graph (official ckpt) | ego only | **1.160** | **2.021** | **0.303** | 1.16 / 2.02 / 0.30 | `b6cf34b` | 0001 | `v2x-seq-tfd/ego.ckpt` (`76b406977e3e1395`) | same | 2022 | `tfd_val_ego.log` |
 
-Both reproduce the paper to the reported precision (C2). Preprocessing: `prepare_tfd_layout.sh`
+| 2026-11-24 | HiVT + PP-VIC (official ckpt, DAIR-V2X-Seq "online") | V2I (rule-based fusion) | **1.264** | **2.344** | **0.354** | 1.26 / 2.34 / 0.35 (DAIR-V2X-Seq benchmark README) | DAIR-V2X-Seq `8a5b4f8` | DAIR 0001–0003 | `hivt_online.ckpt` (`627d2f050ca5e8f5`) | ckpt hparams; `eval.py` defaults (batch 32); `hivt-cu128` image, RTX 5090 | 2022 (fixed in `eval.py`) | `/raid/scratch/hivt_data/logs/eval/tfd_val_online_cu128_gpu1.log` |
+| 2026-11-24 | HiVT (official ckpt, DAIR-V2X-Seq "no cooperation") | ego only | **1.436** | **2.524** | **0.361** | 1.44 / 2.52 / 0.36 (DAIR-V2X-Seq benchmark README) | DAIR-V2X-Seq `8a5b4f8` | DAIR 0001–0003 | `hivt_none.ckpt` (`1cafff37d2eb2220`) | car-only input (`vehicle-trajectories`); `eval.py` defaults; `hivt-cu128`, RTX 3090 | 2022 | `/raid/scratch/hivt_data/logs/eval/tfd_val_none.log` |
+| 2026-11-24 | HiVT (official ckpt, DAIR-V2X-Seq "offline") | ego input, infra-pretrained | **1.392** | **2.227** | **0.317** | 1.39 / 2.23 / 0.32 (DAIR-V2X-Seq benchmark README) | DAIR-V2X-Seq `8a5b4f8` | DAIR 0001–0003 | `hivt_offline.ckpt` (`d627bc2668a8116e`) | same | 2022 | `/raid/scratch/hivt_data/logs/eval/tfd_val_offline.log` |
+
+Both reproduce the paper to the reported precision (C2).
+HiVT (C1): the official "online" checkpoint reproduces the DAIR-V2X-Seq benchmark number
+exactly, and so do the "no cooperation" and "offline" checkpoints (car-only input).
+Input for "online": `fusion_for_prediction.py` + `tfd_converter.py` (README, "HiVT"), then
+HiVT's own processing. Preprocessing: `prepare_tfd_layout.sh`
 → `maps_merge.py` (DAIR-V2X-Seq `8a5b4f8`) → `generate_label.py` → `preprocess_parallel.py`
 (`PYTHONHASHSEED=0`; output-identical to upstream `preprocess.py`, see BUILD_GOTCHAS.md).
 Val caches: 10,229 scenarios in `/raid/scratch/v2xgraph_data/tfd/cooperative-vehicle-infrastructure/v2x_fusion/val/processed`.
@@ -63,3 +99,75 @@ complete, loss 8.8 → 6.0 on both; QCNet AV2 — cu128 image on the 3090 (batch
 the 5090 (batch 4, 9 GiB peak in these 40 steps) both complete. Same seed does **not**
 give the same weights across the two torch versions, so a benchmark row must use one
 image for all its seeds.
+
+## Training speed (2026-11-24)
+
+Not benchmark numbers. One full epoch of V2X-Graph, TFD train, V2I, `v2x-graph-cu128`,
+batch 4 × accumulation 16, 12 workers, seed 2022, both cards at the same time, graph files
+read from `/raid` (single 8 TB HDD):
+
+| Card | Steps/s | Epoch (6,394 steps) | 64 epochs (estimate) |
+| --- | --- | --- | --- |
+| RTX 3090 | 1.21 | 88.3 min | ~94 h |
+| RTX 5090 | 1.39 | 76.7 min | ~82 h |
+
+Logs: `/raid/scratch/v2xgraph_data/logs/timing/`. No errors; peak allocated memory at
+batch 4 is 8.9 GiB (nvidia-smi showed up to 23 / 30 GB, mostly the allocator's cache).
+
+**Why the 5090 was barely faster.** Not the disk: with batches already in GPU memory the
+5090 runs at the same 1.40 steps/s. The profiler puts 612 of 714 ms per step in one kernel,
+the backward of `self.<lane attribute>_embed[index]` in `models/agent_lane_subgraph.py`:
+690,000 indices into tables of 2–4 rows, which PyTorch's generic indexing backward handles
+almost serially. Patch 0004 (V2X-Graph) and DAIR-V2X-Seq 0002 (HiVT, same code) use
+`F.embedding` instead:
+
+| Card | Original | With `F.embedding` | Speed-up |
+| --- | --- | --- | --- |
+| RTX 3090 | 1.24 steps/s | 5.91 steps/s | 4.8× |
+| RTX 5090 | 1.39 steps/s | 11.17 steps/s | 8.0× |
+
+Same computation: forward and loss identical (2.2361860 on the test batch). Gradients of
+the three tables are closer to a float64 reference than the original's (max error
+2.5e-8 – 3.0e-8 vs 6.2e-8 – 1.4e-7, gradient scale ~7e-3); all other parameters differ by
+at most 5.5e-6, against 2.8e-6 between two runs of the unpatched code (atomic adds in PyG).
+
+**After the fix the disk becomes the limit.** The DataLoader alone reads 7.4 batches/s
+(29.6 scenarios/s) from `/raid` with 12 workers, below the 5090's 11.2, and two runs on the
+same disk would share it. Real `train.py` on the 5090 with the fix: 3.54 steps/s from the
+HDD. The train graph files were therefore moved to the NVMe (TFD 84 GB, V2X-Traj 25 GB;
+copies verified by file count, total bytes and 300 random md5 each; HDD originals kept as
+`processed.hdd_backup`). From the NVMe, 5090, real `train.py` (first minutes of an epoch):
+
+| Dataset | Steps/s | Epoch | 64 epochs (training only) |
+| --- | --- | --- | --- |
+| TFD (6,394 steps) | 9.27 | ~11.5 min | ~12.3 h |
+| V2X-Traj (1,516 steps) | 7.55 | ~3.4 min | ~3.6 h |
+
+Down from ~82 h per TFD run on the 5090 before the fix.
+
+## TFD val: full vs leakage-free subset (official checkpoints, 2026-11-24)
+
+Protocol point 7. "Clean" = the 1,122 val scenarios with no train clip at the same
+intersection within 60 s (`docs/data_checks/tfd_val_clean60s.txt`); "rest" = the other
+9,107. Same checkpoints and settings as the rows above; `*-cu128` images. The size-weighted
+mean of clean and rest equals the full-val number (checked).
+
+| Method | Setting | Full val (10,229) | Rest (9,107) | Clean (1,122) | Clean vs rest, minFDE |
+| --- | --- | --- | --- | --- | --- |
+| V2X-Graph | V2I | 1.046 / 1.787 / 0.254 | 1.041 / 1.774 / 0.253 | 1.099 / 1.894 / 0.261 | +6.8 % |
+| V2X-Graph | ego | 1.160 / 2.021 / 0.303 | 1.157 / 2.015 / 0.303 | 1.181 / 2.072 / 0.308 | +2.8 % |
+| HiVT + PP-VIC | online (V2I, rule-based fusion) | 1.264 / 2.344 / 0.354 | 1.247 / 2.308 / 0.352 | 1.401 / 2.635 / 0.369 | +14.2 % |
+| HiVT | no cooperation | 1.436 / 2.524 / 0.361 | 1.432 / 2.495 / 0.358 | 1.471 / 2.759 / 0.384 | +10.6 % |
+| HiVT | offline (infra-pretrained, car-only input) | 1.392 / 2.227 / 0.317 | 1.391 / 2.210 / 0.315 | 1.397 / 2.361 / 0.331 | +6.8 % |
+
+Reading (preliminary): every model is worse on the clean clips; the ranking of the five
+does not change, but the gaps do. Cooperation helps less on clean clips (minFDE gain over
+the same method without infrastructure: V2X-Graph rest −12.0 % / clean −8.6 %; HiVT
+online vs no cooperation rest −7.5 % / clean −4.5 %), and HiVT's rule-based fusion loses
+most (+14 %), so on clean clips HiVT "offline" beats "online" by 10 % instead of 4 %. Two caveats before this becomes a claim: (1) with 1,122 scenarios the standard
+error of minFDE is a few centimetres, so differences under ~0.1 m need a per-scenario
+paired test (eval.py only prints means; dump per-scenario errors next); (2) "clean" clips
+differ from the rest in more than leakage (rarer times and intersections), so a
+day-held-out retrain is the clean causal test.
+
+Logs: `/raid/scratch/v2xgraph_data/logs/eval/subsets/`, `/raid/scratch/hivt_data/logs/eval/`.

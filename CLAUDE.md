@@ -36,6 +36,11 @@ plan documents below before doing any work.
    robustness, cost, and per-difficulty/occlusion analysis.
 4. Default model family for our own work: **relative / query-centric** (HiVT/QCNet style),
    propose → refine decoder, calibrated mode probabilities.
+5. **Benchmark training protocol (2026-11-24)**: retrain every method, 3 seeds, each
+   method's published schedule, report the **last** checkpoint (never pick on val: val is
+   our test set), `*-cu128` image for every paper-1 run, published effective batch kept via
+   gradient accumulation. Official checkpoints are sanity checks only. Full text:
+   [`docs/RESULTS.md`](docs/RESULTS.md), "Protocol".
 
 ## Methods
 
@@ -87,7 +92,9 @@ what is actually on disk.
   `nvidia-smi` first and do not put a second job on a busy card (see README, "GPU
   allocation"). Record image + card with every number.
 - Mount datasets read-only; write preprocessing output under `/raid/scratch/<name>_*`, not
-  the OS disk.
+  the OS disk. One exception (Mario, 2026-11-24): training graph files that the HDD cannot
+  feed fast enough go to `/home/baco/nvme_cache/` (symlinked from `/raid`); ask before
+  adding more there and check `df -h /` first.
 - For every reported number record: upstream commit (`git -C repos/<Name> rev-parse HEAD`),
   config, seed, split. A number without these does not go into the benchmark.
 - Don't download behind a login, license click-through or application form on Mario's

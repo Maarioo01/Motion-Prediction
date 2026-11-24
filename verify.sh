@@ -19,12 +19,13 @@ declare -A CHECKS=(
   [v2x-graph]="python -c \"import torch, torch_geometric, pytorch_lightning, torchmetrics, lap, shapely, scipy, cv2; from torch_geometric.nn import MessagePassing; from dair_map_api import DAIRV2XMap; from argoverse.utils.centerline_utils import centerline_to_polygon; assert torch.__version__=='1.12.1+cu116'; assert torch.cuda.is_available(); x=torch.randn(4,8).cuda(); print(torch.cuda.get_device_name(0), (x@x.T).sum().item())\""
   [qcnet-cu128]="python -c \"import torch, torch_geometric, torch_scatter, torch_cluster, pytorch_lightning, av2; from torch_cluster import radius_graph; assert torch.__version__=='2.7.1+cu128'; assert torch.cuda.is_available(); x=torch.randn(1000,2).cuda(); print(torch.cuda.get_device_name(0), radius_graph(x, r=0.2).shape[1])\""
   [v2x-graph-cu128]="python -c \"import torch, torch_geometric, pytorch_lightning, torchmetrics, lap, shapely, scipy, cv2; from torch_geometric.nn import MessagePassing; from dair_map_api import DAIRV2XMap; from argoverse.utils.centerline_utils import centerline_to_polygon; assert torch.__version__=='2.7.1+cu128'; assert torch.cuda.is_available(); x=torch.randn(4,8).cuda(); print(torch.cuda.get_device_name(0), (x@x.T).sum().item())\""
+  [hivt-cu128]="python -c \"import torch; from models.hivt import HiVT; from datamodules import TFDDataModule; from utils import TemporalData; from dair_map_api import DAIRV2XMap; assert torch.__version__=='2.7.1+cu128'; assert torch.cuda.is_available(); x=torch.randn(4,8).cuda(); print(torch.cuda.get_device_name(0), (x@x.T).sum().item())\""
   [cmp]="python -c \"import torch, torchvision, torch_geometric, spconv, opencood; from mtr.ops.knn import knn_utils; assert torch.cuda.is_available()\""
 )
 
 SERVICES=("$@")
 if [ "${#SERVICES[@]}" -eq 0 ]; then
-  SERVICES=(qcnet cmp v2x-graph qcnet-cu128 v2x-graph-cu128)
+  SERVICES=(qcnet cmp v2x-graph qcnet-cu128 v2x-graph-cu128 hivt-cu128)
 fi
 
 overall=0
