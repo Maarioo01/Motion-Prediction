@@ -86,3 +86,38 @@ complete, loss 8.8 → 6.0 on both; QCNet AV2 — cu128 image on the 3090 (batch
 the 5090 (batch 4, 9 GiB peak in these 40 steps) both complete. Same seed does **not**
 give the same weights across the two torch versions, so a benchmark row must use one
 image for all its seeds.
+
+## Training speed (2026-11-24)
+
+Not benchmark numbers. One full epoch of V2X-Graph, TFD train, V2I, `v2x-graph-cu128`,
+batch 4 × accumulation 16, 12 workers, seed 2022, both cards at the same time, graph files
+read from `/raid` (single 8 TB HDD):
+
+| Card | Steps/s | Epoch (6,394 steps) | 64 epochs (estimate) |
+| --- | --- | --- | --- |
+| RTX 3090 | 1.21 | 88.3 min | ~94 h |
+| RTX 5090 | 1.39 | 76.7 min | ~82 h |
+
+Logs: `/raid/scratch/v2xgraph_data/logs/timing/`. No errors; peak allocated memory at
+batch 4 is 8.9 GiB (nvidia-smi showed up to 23 / 30 GB, mostly the allocator's cache).
+
+**Why the 5090 was barely faster.** Not the disk: with batches already in GPU memory the
+5090 runs at the same 1.40 steps/s. The profiler puts 612 of 714 ms per step in one kernel,
+the backward of `self.<lane attribute>_embed[index]` in `models/agent_lane_subgraph.py`:
+690,000 indices into tables of 2–4 rows, which PyTorch's generic indexing backward handles
+almost serially. Patch 0004 (V2X-Graph) and DAIR-V2X-Seq 0002 (HiVT, same code) use
+`F.embedding` instead:
+
+| Card | Original | With `F.embedding` | Speed-up |
+| --- | --- | --- | --- |
+| RTX 3090 | 1.24 steps/s | 5.91 steps/s | 4.8× |
+| RTX 5090 | 1.39 steps/s | 11.17 steps/s | 8.0× |
+
+Same computation: forward and loss identical (2.2361860 on the test batch). Gradients of
+the three tables are closer to a float64 reference than the original's (max error
+2.5e-8 – 3.0e-8 vs 6.2e-8 – 1.4e-7, gradient scale ~7e-3); all other parameters differ by
+at most 5.5e-6, against 2.8e-6 between two runs of the unpatched code (atomic adds in PyG).
+
+**After the fix the disk becomes the limit.** The DataLoader alone reads 7.4 batches/s
+(29.6 scenarios/s) from `/raid` with 12 workers, below the 5090's 11.2, and two runs on the
+same disk would share it. TFD train graph files: 84 GB (val 34 GB; V2X-Traj 25 + 8.1 GB).

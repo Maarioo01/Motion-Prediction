@@ -1,0 +1,25 @@
+diff --git a/models/agent_lane_subgraph.py b/models/agent_lane_subgraph.py
+index c127e57..717c4b4 100644
+--- a/models/agent_lane_subgraph.py
++++ b/models/agent_lane_subgraph.py
+@@ -1,6 +1,7 @@
+ from typing import Optional, Tuple
+ 
+ import torch
++import torch.nn.functional as F  # F.embedding: fast backward for the lane-attribute tables (BUILD_GOTCHAS)
+ import torch.nn as nn
+ from torch_geometric.nn.conv import MessagePassing
+ from torch_geometric.typing import Adj
+@@ -92,9 +93,9 @@ class AgentLaneSubGraph(MessagePassing):
+         lane_embed = self.lane_encoder(x_j, rotate_mat)
+         edge_embed = self.edge_encoder(edge_attr, rotate_mat)
+         x_j = self.aggr_embed(torch.stack([lane_embed, edge_embed,
+-                               self.is_intersection_embed[is_intersections_j],
+-                               self.turn_direction_embed[turn_directions_j],
+-                               self.traffic_control_embed[traffic_controls_j]]).sum(dim=0))                                
++                               F.embedding(is_intersections_j.long(), self.is_intersection_embed),
++                               F.embedding(turn_directions_j.long(), self.turn_direction_embed),
++                               F.embedding(traffic_controls_j.long(), self.traffic_control_embed)]).sum(dim=0))                                
+         query = self.lin_q(x_i).view(-1, self.num_heads, self.embed_dim // self.num_heads)
+         key = self.lin_k(x_j).view(-1, self.num_heads, self.embed_dim // self.num_heads)
+         value = self.lin_v(x_j).view(-1, self.num_heads, self.embed_dim // self.num_heads)

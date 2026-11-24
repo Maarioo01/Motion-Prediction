@@ -1,5 +1,5 @@
 diff --git a/train.py b/train.py
-index c6f4fe6..f31bc7e 100644
+index c6f4fe6..ce8f26d 100644
 --- a/train.py
 +++ b/train.py
 @@ -20,9 +20,8 @@ SUPPORTED_COOPERATION = {
@@ -23,12 +23,14 @@ index c6f4fe6..f31bc7e 100644
      if args.dataset == 'V2X-Seq-TFD':
          datamodule = TFDDataModule.from_argparse_args(args)
          args.historical_steps = 50
-@@ -55,7 +55,7 @@ if __name__ == '__main__':
-     assert args.cooperation in SUPPORTED_COOPERATION[args.dataset], "Invalid cooperation"
+@@ -56,7 +56,9 @@ if __name__ == '__main__':
      
      datamodule.setup()
--    model_checkpoint = ModelCheckpoint(monitor=args.monitor, save_top_k=args.save_top_k, mode='min')
-+    model_checkpoint = ModelCheckpoint(monitor=args.monitor, save_top_k=args.save_top_k, mode='min', save_last=True)
-     trainer = pl.Trainer.from_argparse_args(args, accelerator='gpu', callbacks=[model_checkpoint])
+     model_checkpoint = ModelCheckpoint(monitor=args.monitor, save_top_k=args.save_top_k, mode='min')
+-    trainer = pl.Trainer.from_argparse_args(args, accelerator='gpu', callbacks=[model_checkpoint])
++    # last.ckpt after every training epoch (the monitored callback only saves when validation runs)
++    last_checkpoint = ModelCheckpoint(save_top_k=0, save_last=True, save_on_train_epoch_end=True)
++    trainer = pl.Trainer.from_argparse_args(args, accelerator='gpu', callbacks=[model_checkpoint, last_checkpoint])
      model = V2XGraph(**vars(args))
  
+     trainer.fit(model, datamodule)

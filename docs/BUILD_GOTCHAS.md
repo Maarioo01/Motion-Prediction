@@ -377,7 +377,19 @@ main [README](../README.md) for the "adding a repo" workflow these apply to.
   checkpoints by val minFDE.** The benchmark needs several seeds and the last checkpoint
   (no selection on val, see `docs/RESULTS.md`, "Protocol") → patch
   `0003-train-seed-arg-save-last.patch` adds `--seed` (default 2022, so upstream
-  behaviour is unchanged) and `save_last=True` (writes `checkpoints/last.ckpt`).
+  behaviour is unchanged) and a second `ModelCheckpoint(save_top_k=0, save_last=True,
+  save_on_train_epoch_end=True)` that writes `checkpoints/last.ckpt` after every training
+  epoch. Do not just add `save_last=True` to the monitored callback: that one only saves
+  when validation runs (every 5 epochs), so `last.ckpt` would be from epoch 60 of 64, and a
+  1-epoch run saves nothing.
+- **Training was 6–8× slower than it needs to be.** `models/agent_lane_subgraph.py` looks
+  up three lane-attribute tables (2, 4 and 2 rows) with ~690,000 indices per batch via
+  `self.X_embed[idx]`; its backward is PyTorch's generic sort-based indexing backward, which
+  serialises on the repeated rows and took 86 % of each step (profiled). Patch
+  `0004-lane-embedding-fast-backward.patch` uses `F.embedding` (identical forward, gradient
+  within float noise): 3090 1.24 → 5.91 steps/s, 5090 1.39 → 11.17 (`docs/RESULTS.md`,
+  "Training speed"). Before it, the 5090 was only 13 % faster than the 3090 because the
+  slow kernel does not scale with GPU size.
 - **The README's V2X-Traj "V2X" minFDE of 0.13 is a typo for 1.13**: the official
   checkpoint gives 1.126 (`docs/RESULTS.md`).
 - **The released V2X-Traj `ego.ckpt` predates the released code**: it carries
@@ -441,6 +453,8 @@ service `hivt-cu128`, which reuses the `motion-prediction/v2x-graph:cu128` image
 - **No new image.** V2X-Graph is built on HiVT and needs the same stack (torch, PyG 2.6.1,
   PL 1.x, argoverse-api, `dair_map_api`), so a third 13 GB image would be a copy. Build
   `v2x-graph-cu128` first.
+- **Same lane-embedding slowdown as V2X-Graph** (it was copied from HiVT): patch
+  `0002-hivt-lane-embedding-fast-backward.patch`, generated against the tree after 0001.
 - **Same two torch-2 / PyG-2 fixes as V2X-Graph**, in one patch
   (`docker/DAIR-V2X-Seq/patches/0001-hivt-plugin-pyg2-torch2.patch`): the PyG 1.x
   `TemporalData.__inc__` signature, and `TemporalEncoderLayer.forward` without
