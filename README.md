@@ -101,14 +101,14 @@ Active services (in `setup.sh` and `docker-compose.yml`):
 | [QCNet](https://github.com/ZikangZhou/QCNet) | ✅ working, **trained from scratch (64 epochs) + official checkpoint reproduces the paper exactly** - see [`TRAINING_PLAN.md`](docs/TRAINING_PLAN.md). Base for our own model; to be adapted to V2X-Seq | `/raid/argoverse2` (present); preprocessed caches in `/raid/scratch/qcnet_data_staging` | ✅ [AV2 marginal](https://drive.google.com/file/d/1OKBytt6N6BdRa9FWmS7F1-YvF0YectBv/view) | Apache-2.0 |
 | [CMP](https://github.com/tasl-lab/CMP) | ✅ working (env); V2V4Real only (checklist D1) | `/raid/datasets/V2V4Real` (present) | see repo's `docs/prepare_dataset_checkpoints.md` | none stated |
 | [V2X-Graph](https://github.com/AIR-THU/V2X-Graph) | ✅ **official TFD checkpoints reproduce the paper** (TFD V2I 1.05 / 1.79 / 0.25 on val; V2X-Traj V2I/V2V/V2X too, ego ckpt does not, see [`RESULTS.md`](docs/RESULTS.md)) | `/raid/datasets/V2X-Seq-TFD`, `/raid/datasets/V2X-Traj` (present); layout + caches in `/raid/scratch/v2xgraph_data` | ✅ in repo via Git LFS (entrypoint fetches them) | Apache-2.0 |
+| HiVT baseline ([DAIR-V2X-Seq](https://github.com/AIR-THU/DAIR-V2X-Seq) `projects/HiVT_plugin`) | ✅ **all three official checkpoints reproduce** (online 1.26 / 2.34 / 0.35, none, offline; `hivt-cu128`, no own image); protocol retraining running | `/raid/datasets/V2X-Seq-TFD`; layout + caches in `/raid/scratch/hivt_data` (fused train set on the NVMe) | ✅ Google Drive, linked from its `docs/benchmarks/vic-traj-forecasting/README.md` | Apache-2.0 (HiVT) |
+| [V2I_trajectory_prediction](https://github.com/xichennn/V2I_trajectory_prediction) (V2INet) | ✅ runs (`v2inet-cu128`, 4 patches); no checkpoint, so a retrain is the reproduction (paper: 1.19 / 1.98 / 0.27) | `/raid/datasets/V2X-Seq-TFD`; layout + caches in `/raid/scratch/v2inet_data` | ❌ none released | none (all rights reserved by default) |
 
-Planned V2X baselines (Phase 0 checklist B2-B5):
+Planned V2X baseline (Phase 0 checklist B4):
 
 | Repo | Status | Dataset | Checkpoints | License |
 |---|---|---|---|---|
-| [V2I_trajectory_prediction](https://github.com/xichennn/V2I_trajectory_prediction) (V2INet) | ⏳ to add (B3); cloned by `setup.sh --all` | V2X-Seq-TFD | ❌ | none (all rights reserved by default) |
 | [Co-MTP](https://github.com/xiaomiaozhang/Co-MTP) | ⏳ to add (B4) | V2X-Seq-TFD | ❌ | none stated |
-| HiVT baseline ([DAIR-V2X-Seq](https://github.com/AIR-THU/DAIR-V2X-Seq) `projects/HiVT_plugin`) | ⏳ to add (B5); likely no separate service needed | V2X-Seq-TFD | ❌ not in repo (README expects `checkpoints/online.ckpt`) | Apache-2.0 (HiVT) |
 
 Archived (configs in [`docker/_archive/`](docker/_archive/README.md), not built or run):
 UniTraj, GameFormer, TrajFlow, MTR, SceneInformer, RealMotion, emp,
@@ -160,6 +160,19 @@ for s in val train; do docker compose run --rm hivt-cu128 bash -c "\
   python /workspace/tools/trajectory_fusion/fusion_for_prediction.py --data_root /workspace/data_staging/tfd --split $s && \
   python /workspace/tools/data_converter/tfd_converter.py --data_root /workspace/data_staging/tfd --split $s"; done
 docker compose run --rm hivt-cu128 python eval.py --root /workspace/data_staging/tfd/cooperative-vehicle-infrastructure/fusion_for_prediction --ckpt_path <ckpt>
+# Train one HiVT online seed under the protocol: the published config of the official "online" checkpoint
+# (lr 3e-4, 2 GPUs x 16 -> here 16 x accumulation 2, 64 epochs); last.ckpt is reported (DAIR patch 0004)
+GPU=1 docker compose run --rm -u 1000:1000 -e MPLCONFIGDIR=/tmp hivt-cu128 python train.py \
+  --root /workspace/data_staging/tfd/cooperative-vehicle-infrastructure/fusion_for_prediction --train_batch_size 16 \
+  --accumulate_grad_batches 2 --lr 3e-4 --max_epochs 64 --num_workers 8 --seed 2022 \
+  --default_root_dir /workspace/data_staging/runs/tfd_online/seed2022
+
+# V2INet (B3; reuses the v2x-graph cu128 image). Car and roadside tracks become separate graph nodes (no association).
+docker compose run --rm v2inet-cu128 bash prepare_tfd_layout.sh          # writable symlink tree in /raid/scratch/v2inet_data
+cp -r /raid/scratch/v2xgraph_data/tfd/map_files /raid/scratch/v2inet_data/tfd/   # same maps_merge.py output
+# Not upstream's serial loop: same per-scenario code (process_argoverse), 10 workers, resumable
+for s in val train; do docker compose run --rm -e PYTHONHASHSEED=0 v2inet-cu128 python preprocess_parallel.py \
+  --root /workspace/data_staging/tfd/cooperative-vehicle-infrastructure/vehicle-trajectories --split $s --workers 10; done
 
 # V2X-Graph on V2X-Traj (ships in the expected layout with prebuilt map_files; no map merge)
 docker compose run --rm v2x-graph bash prepare_v2xtraj_layout.sh
@@ -247,7 +260,7 @@ Two cards since 2026-11-16 (the unstable 3090 Ti was replaced by an RTX 5090):
 | `nvidia-smi` index | Card | Memory | Images that run on it |
 | --- | --- | --- | --- |
 | 0 | RTX 3090 | 24 GB | all (`qcnet`, `cmp`, `v2x-graph` and the `*-cu128` ones) |
-| 1 | RTX 5090 | 32 GB | only `*-cu128` (`qcnet-cu128`, `v2x-graph-cu128`, `hivt-cu128`) |
+| 1 | RTX 5090 | 32 GB | only `*-cu128` (`qcnet-cu128`, `v2x-graph-cu128`, `hivt-cu128`, `v2inet-cu128`) |
 
 **Why two images per repo.** The 5090 needs PyTorch built for CUDA ≥ 12.8 (torch ≥ 2.7);
 the upstream pins (torch 1.12 / 1.13 / 2.0 on CUDA 11.x) cannot run on it. Each ported

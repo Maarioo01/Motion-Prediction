@@ -1,0 +1,17 @@
+diff --git a/datasets/dair_map_api.py b/datasets/dair_map_api.py
+index e4b3a8b..13f4b9c 100644
+--- a/datasets/dair_map_api.py
++++ b/datasets/dair_map_api.py
+@@ -29,10 +29,8 @@ MAX_LABEL_DIST_TO_LANE = 20  # meters
+ OUT_OF_RANGE_LANE_DIST_THRESHOLD = 5.0  # 5 meters
+ ROI_ISOCONTOUR = 5.0
+ 
+-DATA_ROOT = "/groups/klhead/xic/cyverse_data/"
+-ROOT = os.path.join(DATA_ROOT, 'map_files')
+-
+-# ROOT = os.path.join(os.environ.get('DATA_ROOT'), 'map_files')
++# (bench) upstream hard-codes the authors' cluster path; use $DATA_ROOT like DAIR-V2X-Seq
++ROOT = os.path.join(os.environ.get('DATA_ROOT'), 'map_files')
+ 
+ # known City IDs from newest to oldest
+ PEKING_ID = 10000

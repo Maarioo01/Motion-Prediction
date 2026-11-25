@@ -1,0 +1,52 @@
+diff --git a/train.py b/train.py
+index 7d2c2b0..536a462 100644
+--- a/train.py
++++ b/train.py
+@@ -10,11 +10,13 @@ import torch.multiprocessing
+ torch.multiprocessing.set_sharing_strategy('file_system')
+ 
+ if __name__ == '__main__':
+-    pl.seed_everything(2024)
+-
+     parser = ArgumentParser()
++    parser.add_argument('--seed', type=int, default=2024)
+     parser.add_argument('--root', type=str, default='')
+     parser.add_argument('--ckpt_path', type=str, default='')
++    # continue an interrupted run (optimizer, scheduler, epoch); --ckpt_path only loads weights
++    parser.add_argument('--resume_ckpt', type=str, default='')
++    parser.add_argument('--default_root_dir', type=str, default=None)
+     parser.add_argument('--train_batch_size', type=int, default=4)
+     parser.add_argument('--val_batch_size', type=int, default=4)
+     parser.add_argument('--shuffle', type=bool, default=True)
+@@ -30,6 +32,7 @@ if __name__ == '__main__':
+     parser.add_argument('--check_val_every_n_epoch', type=int, default=5)
+     parser = V2X.add_model_specific_args(parser)
+     args = parser.parse_args()
++    pl.seed_everything(args.seed)
+     datamodule = V2XDataModule(root=args.root,
+                                     train_batch_size=args.train_batch_size,
+                                     val_batch_size=args.val_batch_size,
+@@ -40,15 +43,19 @@ if __name__ == '__main__':
+                                     )
+     datamodule.setup()
+     model_checkpoint = ModelCheckpoint(monitor=args.monitor, save_top_k=args.save_top_k, mode='min')
++    # last.ckpt after every training epoch (the monitored callback only saves when validation runs)
++    last_checkpoint = ModelCheckpoint(save_top_k=0, save_last=True, save_on_train_epoch_end=True)
+     trainer = pl.Trainer(max_epochs=args.max_epochs,
+                         accelerator=args.accelerator,
+                         devices=args.gpus,
+                         gradient_clip_val=0.5,
+                         accumulate_grad_batches=args.accu_batch,
+-                        callbacks=[model_checkpoint])
++                        check_val_every_n_epoch=args.check_val_every_n_epoch,
++                        default_root_dir=args.default_root_dir,
++                        callbacks=[model_checkpoint, last_checkpoint])
+     model = V2X(**vars(args))
+     if args.ckpt_path:
+         model = V2X.load_from_checkpoint(checkpoint_path=args.ckpt_path, parallel=False)
+     model.T_max = args.T_max
+     model.max_epochs = args.max_epochs
+-    trainer.fit(model, datamodule)
+\ No newline at end of file
++    trainer.fit(model, datamodule, ckpt_path=args.resume_ckpt or None)
+\ No newline at end of file

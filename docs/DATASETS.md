@@ -8,10 +8,14 @@ Real datasets only (CLAUDE.md, standing decision 1). What is on `/raid` as of 20
 | `/raid/datasets/V2X-Traj/v2x-traj` | 11 GB | V2X-Graph |
 | `/raid/datasets/V2V4Real` | 41 GB | CMP |
 | `/raid/argoverse2` | — | QCNet (pretraining / checkpoint sanity check) |
-| `/raid/argoverse1_1` | 327 GB | kept until the HiVT sanity check (official HiVT checkpoints are AV1); then delete |
+| `/raid/argoverse1_1` | 327 GB | kept until the HiVT sanity check (official HiVT checkpoints are AV1); then delete. *2026-11-25: the HiVT check was done with the V2X-Seq checkpoints (C1), so this is now a delete candidate; waiting for Mario's decision.* |
 | `/raid/waymo/scenario` (`training`, `validation`, `testing`, `*_interactive`) | — | kept (Mario's choice), no active service |
 | `/raid/nuscenes` | — | GaussianCaR collaboration |
 | `/raid/scratch/qcnet_data_staging` | — | QCNet preprocessing caches |
+| `/raid/scratch/v2xgraph_data` | 155 GB | V2X-Graph layouts, labels, graph files (train sets on the NVMe, see below), leakage-free subset roots |
+| `/raid/scratch/hivt_data` | ~130 GB when done | HiVT layout, rule-based fusion output, graph files (fused + car-only), official checkpoints, protocol runs |
+| `/raid/scratch/v2inet_data` | ~80 GB when done | V2INet layout (symlinks), merged map copy, graph files, protocol runs |
+| `/home/baco/nvme_cache` (OS disk) | 145 GB | training graph files the HDD cannot feed fast enough (Mario, 2026-11-24): V2X-Graph TFD 84 GB + V2X-Traj 25 GB, HiVT fused TFD 37 GB (2026-11-25). The `train/processed` folders under `/raid/scratch` are symlinks here; HDD originals kept as `processed.hdd_backup` |
 
 **Deleted on 2026-11-11 (checklist A3, approved by Mario):** `/raid/datasets/OPV2V`
 (197 GB, simulated), `/raid/waymo/scenario/training_20s` (87 GB, only SceneInformer),

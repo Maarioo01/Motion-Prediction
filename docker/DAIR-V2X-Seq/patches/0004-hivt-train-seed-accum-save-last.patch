@@ -1,0 +1,41 @@
+diff --git a/projects/HiVT_plugin/train.py b/projects/HiVT_plugin/train.py
+index 9a2d7b4..a05f103 100644
+--- a/projects/HiVT_plugin/train.py
++++ b/projects/HiVT_plugin/train.py
+@@ -10,11 +10,14 @@ import torch.multiprocessing
+ torch.multiprocessing.set_sharing_strategy('file_system')
+ 
+ if __name__ == '__main__':
+-    pl.seed_everything(2022)
+-
+     parser = ArgumentParser()
++    parser.add_argument('--seed', type=int, default=2022)
+     parser.add_argument('--root', type=str, default='../../dataset/v2x-seq-tfd/V2X-Seq-TFD-Example/cooperative-vehicle-infrastructure/fusion_for_prediction/')
+     parser.add_argument('--ckpt_path', type=str, default='')
++    # continue an interrupted run (optimizer, scheduler, epoch); --ckpt_path only loads weights
++    parser.add_argument('--resume_ckpt', type=str, default='')
++    parser.add_argument('--default_root_dir', type=str, default='')
++    parser.add_argument('--accumulate_grad_batches', type=int, default=1)
+     parser.add_argument('--train_batch_size', type=int, default=32)
+     parser.add_argument('--val_batch_size', type=int, default=32)
+     parser.add_argument('--shuffle', type=bool, default=True)
+@@ -29,13 +32,17 @@ if __name__ == '__main__':
+     
+     parser = HiVT.add_model_specific_args(parser)
+     args = parser.parse_args()
++    pl.seed_everything(args.seed)
+     datamodule = TFDDataModule.from_argparse_args(args)
+     datamodule.setup()
+     model_checkpoint = ModelCheckpoint(monitor=args.monitor, save_top_k=args.save_top_k, mode='min')
+-    trainer = pl.Trainer.from_argparse_args(args, accelerator='gpu', callbacks=[model_checkpoint])
++    # last.ckpt after every training epoch (the monitored callback only saves when validation runs,
++    # and with validation every 5 epochs the final epoch 64 would never be saved)
++    last_checkpoint = ModelCheckpoint(save_top_k=0, save_last=True, save_on_train_epoch_end=True)
++    trainer = pl.Trainer.from_argparse_args(args, accelerator='gpu', callbacks=[model_checkpoint, last_checkpoint])
+     model = HiVT(**vars(args))
+     if args.ckpt_path:
+         model = model.load_from_checkpoint(checkpoint_path=args.ckpt_path, parallel=False)
+     model.T_max = args.T_max
+     model.max_epochs = args.max_epochs
+-    trainer.fit(model, datamodule)
++    trainer.fit(model, datamodule, ckpt_path=args.resume_ckpt or None)

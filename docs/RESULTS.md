@@ -19,15 +19,19 @@ Applies to every number in the paper-1 tables. Rows produced with official check
    epochs and learning-rate schedule. Upstream "best val" checkpoints are ignored. If a
    method turns out unstable at the end of training, hold out part of train for selection
    instead (decide per method, record it).
-3. **Retrain every method, 3 seeds** (report mean and spread). V2X-Graph: `--seed` from
-   patch 0003.
+3. **Retrain every method, 3 seeds: 2022, 2023, 2024**, the same three for every method
+   (report mean and spread). `--seed` comes from our patches (V2X-Graph 0003, DAIR-V2X-Seq
+   0004 for HiVT, V2INet 0004).
 4. **One image per row, the `*-cu128` one**, so any run can go on either card. The same
    seed gives different weights in the two images, so seeds of one row never mix images.
 5. **Same effective batch as published.** On one card, gradient accumulation makes up
    for the paper's GPU count (V2X-Graph: 4 GPUs × 1 × 16 → 1 GPU × 4 × 16 = 64 scenarios
    per update). Note: V2X-Graph averages its loss over all agents in a batch, so 4
    scenarios on one card weight crowded scenes slightly differently than 4 cards with 1
-   each.
+   each. HiVT and V2INet average the same way, so where it fits the micro-batch equals the
+   published per-GPU batch (then accumulation reproduces multi-GPU training exactly); where
+   it does not, the smaller micro-batch is recorded. Per-method settings: "Training
+   configurations" below.
 6. **Record** with every number: upstream commit, patches, config and flags, seed,
    split, image, card, log path.
 7. **Two views of TFD val** (decided 2026-11-24): every method is reported on the full
@@ -35,6 +39,48 @@ Applies to every number in the paper-1 tables. Rows produced with official check
    same intersection within 60 s (`docs/data_checks/tfd_val_clean60s.txt`; why: the
    official splits share drives and seconds, see `docs/DATASETS.md`). Same checkpoint,
    only the evaluated scenarios differ. V2X-Traj has no such subset.
+
+## Training configurations for the retrains (2026-11-25)
+
+The published schedule of each method, and how it runs on one card. HiVT's settings are read
+from the hyperparameters stored in its official checkpoints (the README gives none); V2INet's
+from its paper (Sec. 5.1.3; the repo defaults differ: batch 4 × 4, lr 5e-4, 3 cross-view layers).
+
+| Row | Source | lr | Published batch per update | Here (micro-batch × accumulation) | Schedule | Other |
+| --- | --- | --- | --- | --- | --- | --- |
+| HiVT online (PP-VIC) | `hivt_online.ckpt` | 3e-4 | 2 GPUs × 16 = 32 | 16 × 2 (exact) | 64 epochs, cosine, T_max 64 | embed 64, `--parallel True` |
+| HiVT none (car only) | `hivt_none.ckpt` | 2.4e-3 | 4 GPUs × 64 = 256 | 32 × 8 (64 does not fit the 3090) | same | same |
+| HiVT offline | `hivt_offline.ckpt` | 3e-3 | 4 GPUs × 80 = 320 | not planned yet | trained on the roadside view (`.../TFD_v2/road`) for 10 epochs (T_max 10) | |
+| V2X-Graph | repo defaults + README | 1e-3 | 4 GPUs × 1 × 16 = 64 | 4 × 16 | 64 epochs, cosine | embed 128 |
+| V2INet | paper, Sec. 5.1.3 | 1e-3 | 32 (one V100S) | 32 × 1 (exact) | 64 epochs, cosine | 1 cross-view layer, embed 64, dropout 0.1, wd 1e-4, gradient clip 0.5 (repo code), `--parallel True` |
+
+All three official HiVT checkpoints are the best-on-val epoch (saved at epoch 60 of 64,
+validation every 5 epochs). Our protocol reports epoch 64 instead.
+
+**`--parallel True` (HiVT, V2INet).** Both models have an option that encodes the 50 history
+steps as one batched graph instead of a Python loop over time steps. Same computation:
+official HiVT online checkpoint, 96 val scenarios, largest difference between the two modes
+1.9e-5 m on predictions up to ~100 m. V2INet, same random weights, 24 scenarios: identical.
+Only the speed changes, because the loop is bound by kernel-launch overhead: HiVT online,
+batch 16, 5090 2.86 → 6.01 steps/s, 3090 2.46 → 3.46. Dropout draws its random numbers in a
+different order in the two modes, so all seeds of one row use the same mode.
+
+## Protocol runs (ledger)
+
+Upstream commits: DAIR-V2X-Seq `8a5b4f8` (HiVT, patches 0001–0004), V2INet `0b07863`
+(patches 0001–0004). Image `motion-prediction/v2x-graph:cu128` (services `hivt-cu128`,
+`v2inet-cu128`). Run directories hold `lightning_logs/version_0/checkpoints/last.ckpt`.
+
+| Started (CET) | Row | Seed | Card | Run directory | Log | Status (2026-11-25 evening) |
+| --- | --- | --- | --- | --- | --- | --- |
+| 11-25 16:02 | HiVT online | 2022 | RTX 5090 | `/raid/scratch/hivt_data/runs/tfd_online_par/seed2022` | `/raid/scratch/hivt_data/logs/train/tfd_online_par_seed2022.log` | running, ~4.8 h |
+| after 2022 | HiVT online | 2024 | RTX 5090 | `.../tfd_online_par/seed2024` | `.../tfd_online_par_seed2024.log` | chained in the same container |
+| 11-25 16:04 | HiVT online | 2023 | RTX 3090 | `.../tfd_online_par/seed2023` | `.../tfd_online_par_seed2023.log` | running, ~8.3 h |
+| queued | HiVT none | 2022 | RTX 3090 | `.../tfd_none_par/seed2022` | `.../tfd_none_par_seed2022.log` | starts after online 2023 (`/raid/scratch/hivt_data/logs/queue_overnight.sh`) |
+| queued | V2INet | 2022 | RTX 5090 | `/raid/scratch/v2inet_data/runs/tfd_v2i_par/seed2022` | `/raid/scratch/v2inet_data/logs/train/tfd_v2i_par_seed2022.log` | starts after online 2024 (same queue) |
+
+Aborted: `/raid/scratch/hivt_data/runs/tfd_online/seed{2022,2023}` (first start without
+`--parallel`, stopped after ~6 min to switch; no checkpoint).
 
 ## V2X-Seq-TFD, val split (test not released)
 
