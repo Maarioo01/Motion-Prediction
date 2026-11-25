@@ -107,7 +107,31 @@ services:
       - ./docker/V2X-Graph/extras:/bench-extras:ro  # prepare_tfd_layout.sh (same TFD layout)
       - /raid/datasets/V2X-Seq-TFD/V2X-Seq-TFD:/data/v2x-seq-tfd:ro
       - /raid/scratch/hivt_data:/workspace/data_staging
+      # Training graph files on the NVMe; fusion_for_prediction/train/processed under /raid is a
+      # symlink to this same absolute path (see the v2x-graph service).
+      - /home/baco/nvme_cache:/home/baco/nvme_cache:ro
     working_dir: /workspace/projects/HiVT_plugin
+    stdin_open: true
+    tty: true
+
+  # V2INet (xichennn/V2I_trajectory_prediction, checklist B3): HiVT-based, one encoder per view
+  # plus cross-view attention. Same stack as HiVT, so it also reuses the v2x-graph cu128 image.
+  # Data layout: docker/V2I_trajectory_prediction/extras/prepare_tfd_layout.sh.
+  v2inet-cu128:
+    image: motion-prediction/v2x-graph:cu128
+    container_name: v2inet-cu128
+    deploy: *gpu-any
+    ipc: host
+    ulimits: *nofile
+    environment:
+      - DATA_ROOT=/workspace/data_staging/tfd      # datasets/dair_map_api.py reads $DATA_ROOT/map_files (patch 0001)
+      - MPLCONFIGDIR=/tmp
+    volumes:
+      - ./repos/V2I_trajectory_prediction:/workspace
+      - /raid/datasets/V2X-Seq-TFD/V2X-Seq-TFD:/data/v2x-seq-tfd:ro
+      - /raid/scratch/v2inet_data:/workspace/data_staging
+      - /home/baco/nvme_cache:/home/baco/nvme_cache:ro
+    working_dir: /workspace
     stdin_open: true
     tty: true
 

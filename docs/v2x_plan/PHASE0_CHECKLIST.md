@@ -42,7 +42,15 @@ source of *why*; this file is the source of *what is done*.
       `verify.sh`; all 6 checkpoints fetched via LFS. Upstream commit `b6cf34b`,
       DAIR-V2X-Seq `8a5b4f8`, argoverse-api `f886ac5`. TFD layout/maps/labels/caches in
       `/raid/scratch/v2xgraph_data`. Build notes in `BUILD_GOTCHAS.md`.*
-- [ ] **B3. Add V2INet** (`xichennn/V2I_trajectory_prediction`, already in `setup.sh --all`).
+- [x] **B3. Add V2INet** (`xichennn/V2I_trajectory_prediction`, already in `setup.sh --all`).
+      *2026-11-25: service `v2inet-cu128` (reuses the v2x-graph cu128 image), passes
+      `verify.sh` on both cards. Upstream `0b07863` + 4 patches (hard-coded map path; the
+      released model cannot be built, `rotate=` argument; `F.embedding` speed fix; `train.py`
+      seed / `last.ckpt`). No checkpoint released, so the retrain is the reproduction (paper,
+      Table 2: 1.19 / 1.98 / 0.27; batch 32, lr 1e-3, 1 cross-view layer). It does no
+      association: car and roadside tracks are separate nodes. Data in
+      `/raid/scratch/v2inet_data` (parallel processing, ~80 GB). Seed 2022 queued on the 5090
+      for the night of 11-25 (`docs/RESULTS.md`, ledger).*
 - [ ] **B4. Add Co-MTP** (`xiaomiaozhang/Co-MTP`, code only; note its 3 s → 5 s @ 5 Hz
       protocol and its use of the AV's ground-truth future as "plan" — privileged info).
 - [x] **B5. HiVT** baseline (`ZikangZhou/HiVT`) — check whether V2X-Seq's own baseline code

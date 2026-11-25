@@ -51,7 +51,9 @@ Active (keep in `setup.sh` + `docker-compose.yml`):
 | QCNet (+ `qcnet-cu128`) | Base for our own model; to be adapted to V2X-Seq. AV2 checkpoint for sanity checks. |
 | CMP | Only cooperative pipeline in the bench; V2V4Real only; aggregation-fix warm-up. |
 | V2X-Graph (+ `v2x-graph-cu128`) | First V2X baseline; official checkpoints reproduced on TFD and V2X-Traj (`docs/RESULTS.md`). |
-| *to add:* V2INet (`V2I_trajectory_prediction`), Co-MTP, HiVT | The remaining V2X baselines for paper 1 (see checklist B3–B5). |
+| HiVT (`hivt-cu128`) | DAIR-V2X-Seq `projects/HiVT_plugin`; official checkpoints reproduced (C1). Reuses the v2x-graph cu128 image. |
+| V2INet (`v2inet-cu128`) | `V2I_trajectory_prediction` (B3); no checkpoint released, so the retrain is the reproduction. Same image. |
+| *to add:* Co-MTP | The remaining V2X baseline for paper 1 (checklist B4). |
 
 Archived (moved to `docker/_archive/<Name>/`, removed from `setup.sh` and
 `docker-compose.yml`; do not build or run them unless Mario asks):

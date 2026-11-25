@@ -487,3 +487,60 @@ service `hivt-cu128`, which reuses the `motion-prediction/v2x-graph:cu128` image
 - **Three different published HiVT numbers on the same val split**: V2X-Seq paper Table 3,
   the DAIR-V2X-Seq README (with checkpoints) and V2X-Graph Table 1 (reportedly a
   re-implementation with hidden size 128; the plugin's default `embed_dim` is 64).
+  A fourth one: the V2INet paper (Table 2) retrained HiVT itself: ego 1.34 / 2.16 / 0.31,
+  PP-VIC 1.28 / 2.11 / 0.31.
+- **`train.py` cannot run the benchmark protocol as released**: it hard-codes
+  `seed_everything(2022)`, keeps only the top-5 checkpoints by val minFDE, and never adds the
+  Trainer's argparse flags (so no `--accumulate_grad_batches`, no `--default_root_dir`). With
+  validation every 5 epochs the final epoch 64 is never saved. Patch
+  `0004-hivt-train-seed-accum-save-last.patch` adds `--seed`, `--accumulate_grad_batches`,
+  `--default_root_dir`, `--resume_ckpt` and the same `last.ckpt` callback as V2X-Graph 0003.
+- **The three official checkpoints were trained with different settings**, readable from
+  their stored hyperparameters (`torch.load(ckpt)['hyper_parameters']`): online lr 3e-4,
+  2 GPUs × 16; none lr 2.4e-3, 4 GPUs × 64; offline lr 3e-3, 4 GPUs × 80 on the roadside
+  view for 10 epochs. The plugin's `train.py` defaults (lr 3e-4, batch 32, 1 GPU) match none
+  of them exactly. `docs/RESULTS.md`, "Training configurations".
+- **Use `--parallel True` for training.** The default loop over the 50 history steps is
+  bound by kernel launches (5090 at ~20 % use, the same time per step at batch 16 or 32).
+  The plugin's own `parallel` mode batches the steps into one graph: same outputs (checked
+  on the official checkpoint), 2.1× faster on the 5090, 1.4× on the 3090.
+- **The fused train set is on the NVMe** too (`/home/baco/nvme_cache/hivt/
+  tfd_fused_train_processed`, 37 GB, verified by count, bytes and 300 md5; the HDD original
+  is `processed.hdd_backup`); the `hivt-cu128` service mounts `/home/baco/nvme_cache`.
+
+## V2INet on V2X-Seq-TFD (added 2026-11-25, checklist B3)
+
+Code: `xichennn/V2I_trajectory_prediction` (`0b07863`, paper arXiv 2408.00374, v3 Mar 2025);
+service `v2inet-cu128`, which also reuses the `motion-prediction/v2x-graph:cu128` image.
+
+- **No new image**: HiVT-based (one HiVT local encoder per view + cross-view attention), same
+  stack as the HiVT plugin. The conformal-prediction part (`train_copula.py`) needs `copulae`,
+  which the image does not have; not needed for training or the benchmark numbers.
+- **No association between views.** `process_argoverse` concatenates the car and roadside
+  CSVs; an object seen by both becomes two nodes, marked only by `source` (1 car, 0 roadside).
+  Car nodes attend to roadside nodes (cross-view layer); loss and metrics use car nodes only.
+  Its time axis is the union of both views' timestamps, which works on TFD because both views
+  share the same 10 Hz grid (checked: union = 100 steps in 301 of 301 val scenarios).
+- **Four fixes as patches** (`docker/V2I_trajectory_prediction/patches/`, applied by
+  `setup.sh`): 0001 `datasets/dair_map_api.py` hard-codes the authors' cluster path
+  (`/groups/klhead/...`); the `$DATA_ROOT` line was commented out, restored. 0002
+  `V2X.__init__` passes `rotate=` to `CrossViewEncoder`, which has no such argument, so the
+  released model cannot be built (`TypeError`). 0003 the same `F.embedding` lane-attribute fix
+  as V2X-Graph 0004 / DAIR 0002. 0004 `train.py`: `--seed`, `last.ckpt` callback,
+  `--default_root_dir`, `--resume_ckpt`, and it now passes `--check_val_every_n_epoch` (upstream
+  parses it but validates every epoch). Note `--accelerator` defaults to `cpu`: pass `gpu`.
+- **Layout**: it reads `<root>/<split>/*.csv` (the release's own layout, no `data/` level) and
+  writes `<root>/<split>/v2x_processed/` next to the CSVs, so the read-only release needs a
+  writable tree: `extras/prepare_tfd_layout.sh` (per-file symlinks for the car view, one
+  directory symlink for the roadside view; maps copied from the V2X-Graph staging folder).
+  Mounting the repo read-only breaks the nested `/workspace/data_staging` mount.
+- **Processing is serial upstream**; `extras/preprocess_parallel.py` calls the same
+  `process_argoverse` + `TemporalData` + `torch.save` with 10 workers (~8 scenarios/s on val,
+  ~2.3 MB per scenario). Run with `PYTHONHASHSEED=0` (lane order follows a Python `set`).
+- **Published configuration differs from the repo defaults**: paper batch 32, lr 1e-3,
+  1 cross-view layer; repo batch 4 × accumulation 4, lr 5e-4, `num_global_layers` 3. We use
+  the paper's. No checkpoint is released, so our retrain is the reproduction (target
+  1.19 / 1.98 / 0.27 on V2X-Seq val, paper Table 2; its V2X-Graph row 1.17 / 2.03 / 0.29 is
+  copied from an earlier source and differs from V2X-Graph's own 1.05 / 1.79 / 0.25).
+- **Like HiVT, use `--parallel True`**: identical outputs to the loop (checked with the same
+  random weights), and the loop runs twice here (two views).

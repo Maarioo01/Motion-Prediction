@@ -5,9 +5,9 @@
 # this repo, only fetched fresh from the original authors.
 #
 # Usage:
-#   ./setup.sh          # clone + overlay the active repos (QCNet, CMP, V2X-Graph, DAIR-V2X-Seq)
-#   ./setup.sh --all    # also clone repos that are planned but not built yet
-#                        # (V2I_trajectory_prediction - checklist B3)
+#   ./setup.sh          # clone + overlay the active repos (QCNet, CMP, V2X-Graph, DAIR-V2X-Seq,
+#                        # V2I_trajectory_prediction)
+#   ./setup.sh --all    # also clone repos that are planned but not built yet (none right now)
 #
 # Archived configs (not cloned here) live in docker/_archive/ - see its README.md.
 set -e
@@ -20,10 +20,12 @@ declare -A REPOS=(
   # No image of its own: mounted into v2x-graph for its dataset/map API and map-merge
   # tool, and the source of the HiVT baseline plugin (checklist B5).
   ["DAIR-V2X-Seq"]="https://github.com/AIR-THU/DAIR-V2X-Seq.git"
+  # V2INet (checklist B3). No image of its own either: runs in the v2x-graph cu128 image.
+  ["V2I_trajectory_prediction"]="https://github.com/xichennn/V2I_trajectory_prediction.git"
 )
 
+# Planned repos, cloned only with --all (empty right now).
 declare -A EXTRA_REPOS=(
-  ["V2I_trajectory_prediction"]="https://github.com/xichennn/V2I_trajectory_prediction.git"
 )
 
 clone_and_overlay() {
@@ -66,7 +68,7 @@ apply_patches() {
     #   echo "[setup] applying docker/<Name>/patches (... - see BUILD_GOTCHAS.md)"
     #   cp "docker/<Name>/patches/<file>" "repos/<Name>/<path>/<file>"
     #   ;;
-    V2X-Graph|DAIR-V2X-Seq)
+    V2X-Graph|DAIR-V2X-Seq|V2I_trajectory_prediction)
       # Unified diffs against the pinned upstream commit; idempotent (skips if already applied).
       # V2X-Graph 0001 / DAIR-V2X-Seq 0001: TemporalData.__inc__ uses the PyG 1.x signature,
       #   but the images ship PyG 2.6.1, whose batching passes an extra 'store' arg -> every

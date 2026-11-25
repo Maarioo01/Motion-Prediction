@@ -1,0 +1,14 @@
+diff --git a/models/v2x_model.py b/models/v2x_model.py
+index 2ebca26..7773696 100644
+--- a/models/v2x_model.py
++++ b/models/v2x_model.py
+@@ -69,8 +69,7 @@ class V2X(pl.LightningModule):
+                                                   num_modes=num_modes,
+                                                   num_heads=num_heads,
+                                                   num_layers=num_global_layers,
+-                                                  dropout=dropout,
+-                                                  rotate=rotate)
++                                                  dropout=dropout)
+         self.decoder = MLPDecoder(single_view_channels=embed_dim,
+                                   cross_view_channels=embed_dim,
+                                   future_steps=future_steps,
